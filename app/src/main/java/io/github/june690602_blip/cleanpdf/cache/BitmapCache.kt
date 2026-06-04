@@ -6,12 +6,16 @@ import android.graphics.Bitmap
 data class PageKey(val page: Int, val scaleMilli: Int)
 
 class BitmapCache(maxBytes: Int) {
+    // No recycle() on eviction: an evicted bitmap may still be attached to a visible — or a
+    // RecyclerView-cached, off-screen — ImageView, and recycling it would crash on the next draw
+    // ("trying to use a recycled bitmap"). Dropping the cache's reference is enough; the GC reclaims
+    // the bitmap once the view releases it too. Render scale is capped (see RenderScale) so each
+    // bitmap stays small and total memory stays bounded by the LRU byte budget.
     private val lru = LruByteSizedCache<PageKey, Bitmap>(
         maxBytes = maxBytes,
         sizeOf = { it.allocationByteCount },
-        onEvict = { _, bmp -> if (!bmp.isRecycled) bmp.recycle() },
     )
-    fun get(key: PageKey): Bitmap? = lru.get(key)?.takeIf { !it.isRecycled }
+    fun get(key: PageKey): Bitmap? = lru.get(key)
     fun put(key: PageKey, bmp: Bitmap) = lru.put(key, bmp)
     fun clear() = lru.clear()
 
