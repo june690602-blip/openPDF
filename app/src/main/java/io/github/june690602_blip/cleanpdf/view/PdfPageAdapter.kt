@@ -13,14 +13,13 @@ import java.util.concurrent.Future
 class PdfPageAdapter(
     private val renderer: PageRenderer,
     private val cache: BitmapCache,
+    private val pageWidthPtsProvider: (Int) -> Float,
 ) : RecyclerView.Adapter<PdfPageAdapter.PageVH>() {
 
     private var layout: PageLayout? = null
-    private var zoom: Float = 1f
-    private var fitWidthPx: Int = 0
 
-    fun submitLayout(layout: PageLayout, zoom: Float, fitWidthPx: Int) {
-        this.layout = layout; this.zoom = zoom; this.fitWidthPx = fitWidthPx
+    fun submitLayout(layout: PageLayout) {
+        this.layout = layout
         notifyDataSetChanged()
     }
 
@@ -41,14 +40,16 @@ class PdfPageAdapter(
 
     override fun onBindViewHolder(holder: PageVH, position: Int) {
         val l = layout ?: return
+        val w = l.contentWidth.toInt()
         val h = l.pageHeight(position).toInt()
-        holder.itemView.layoutParams = RecyclerView.LayoutParams(
-            RecyclerView.LayoutParams.MATCH_PARENT, h,
-        )
+        holder.itemView.layoutParams = RecyclerView.LayoutParams(w, h)
         holder.pending?.cancel(true)
         holder.image.setImageBitmap(null)
 
-        val renderScale = (fitWidthPx * zoom) / PDF_BASE_WIDTH_HINT // see note below
+        // Exact per-page render scale: render so the page's width == contentWidth (== fitWidthPx*zoom).
+        val targetWidthPx = l.contentWidth
+        val pageWidthPts = pageWidthPtsProvider(position)
+        val renderScale = if (pageWidthPts > 0f) targetWidthPx / pageWidthPts else 1f
         val key = PageKey(position, BitmapCache.scaleMilli(renderScale))
         val cached = cache.get(key)
         if (cached != null) { holder.image.setImageBitmap(cached); return }
@@ -68,12 +69,5 @@ class PdfPageAdapter(
 
     class PageVH(itemView: FrameLayout, val image: ImageView) : RecyclerView.ViewHolder(itemView) {
         var pending: Future<*>? = null
-    }
-
-    companion object {
-        // fitz scale 1.0 == 72dpi. We want page width (in px) == fitWidthPx*zoom.
-        // renderScale = targetWidthPx / pageWidthPts. PdfReaderView passes exact per-page scale
-        // in Task 8 refinement; for Task 7 we approximate via a base hint and FIT_CENTER.
-        const val PDF_BASE_WIDTH_HINT = 595f // A4 width in pts; refined in Task 8
     }
 }
