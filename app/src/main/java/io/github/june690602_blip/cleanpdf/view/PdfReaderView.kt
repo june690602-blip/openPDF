@@ -52,7 +52,7 @@ class PdfReaderView @JvmOverloads constructor(
         this.renderer = renderer; this.sizes = sizes
         // ~96MB bitmap budget (tune later); guard against tiny heaps.
         this.cache = BitmapCache(maxBytes = 96 * 1024 * 1024)
-        val a = PdfPageAdapter(renderer, cache!!, pageWidthPtsProvider = { i -> sizes[i].width })
+        val a = PdfPageAdapter(renderer, cache!!, pageSizeProvider = { i -> sizes[i] })
         adapterImpl = a; adapter = a
         relayout()
     }

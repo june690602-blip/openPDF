@@ -8,12 +8,14 @@ import androidx.recyclerview.widget.RecyclerView
 import io.github.june690602_blip.cleanpdf.cache.BitmapCache
 import io.github.june690602_blip.cleanpdf.cache.PageKey
 import io.github.june690602_blip.cleanpdf.pdf.PageRenderer
+import io.github.june690602_blip.cleanpdf.pdf.PageSize
+import io.github.june690602_blip.cleanpdf.pdf.RenderScale
 import java.util.concurrent.Future
 
 class PdfPageAdapter(
     private val renderer: PageRenderer,
     private val cache: BitmapCache,
-    private val pageWidthPtsProvider: (Int) -> Float,
+    private val pageSizeProvider: (Int) -> PageSize,
 ) : RecyclerView.Adapter<PdfPageAdapter.PageVH>() {
 
     private var layout: PageLayout? = null
@@ -46,10 +48,9 @@ class PdfPageAdapter(
         holder.pending?.cancel(true)
         holder.image.setImageBitmap(null)
 
-        // Exact per-page render scale: render so the page's width == contentWidth (== fitWidthPx*zoom).
-        val targetWidthPx = l.contentWidth
-        val pageWidthPts = pageWidthPtsProvider(position)
-        val renderScale = if (pageWidthPts > 0f) targetWidthPx / pageWidthPts else 1f
+        // Exact per-page render scale: render so the page's width == contentWidth (== fitWidthPx*zoom),
+        // capped so the bitmap never exceeds RenderScale.MAX_BITMAP_BYTES.
+        val renderScale = RenderScale.forPage(l.contentWidth, pageSizeProvider(position))
         val key = PageKey(position, BitmapCache.scaleMilli(renderScale))
         val cached = cache.get(key)
         if (cached != null) { holder.image.setImageBitmap(cached); return }
