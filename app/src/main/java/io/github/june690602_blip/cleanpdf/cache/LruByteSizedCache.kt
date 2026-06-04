@@ -17,7 +17,10 @@ class LruByteSizedCache<K, V>(
     fun get(key: K): V? = map[key]
 
     fun put(key: K, value: V) {
-        map.remove(key)?.let { currentBytes -= sizeOf(it) }
+        map.remove(key)?.let { old ->
+            currentBytes -= sizeOf(old)
+            onEvict(key, old)
+        }
         map[key] = value
         currentBytes += sizeOf(value)
         trim()

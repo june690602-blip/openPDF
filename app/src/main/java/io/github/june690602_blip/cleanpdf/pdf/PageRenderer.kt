@@ -22,7 +22,11 @@ class PageRenderer(private val doc: PdfDocument) {
     fun sizesBlockingOnRenderThread(): List<PageSize> =
         exec.submit<List<PageSize>> { (0 until doc.pageCount).map { doc.pageSize(it) } }.get()
 
-    /** Render [page] at [scale]; deliver bitmap on the render thread via [onReady]. */
+    /**
+     * Render [page] at [scale]; deliver the bitmap via [onReady].
+     * NOTE: [onReady] is invoked on the render thread — callers MUST post to the main thread
+     * (e.g. View.post {}) before touching any UI or main-thread-owned state (e.g. the cache).
+     */
     fun submit(page: Int, scale: Float, onReady: (Bitmap) -> Unit): Future<*> =
         exec.submit {
             if (!Thread.currentThread().isInterrupted) {

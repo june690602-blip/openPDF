@@ -36,4 +36,12 @@ class LruByteSizedCacheTest {
         c.put(1, 10); c.put(2, 10) // evicts 1
         assertEquals(listOf(10), evicted)
     }
+
+    @Test fun overwritingKeyEvictsReplacedValue() {
+        val evicted = mutableListOf<Int>()
+        val c = LruByteSizedCache<Int, Int>(100, sizeOf = { it }, onEvict = { _, v -> evicted.add(v) })
+        c.put(1, 10)
+        c.put(1, 20) // same key replaced -> old value 10 must be evicted (so a Bitmap could recycle)
+        assertEquals(listOf(10), evicted)
+    }
 }
