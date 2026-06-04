@@ -6,7 +6,7 @@
 
 **Architecture:** Kotlin + Android Views. MuPDF `fitz` (prebuilt AAR from `maven.ghostscript.com`) is wrapped by a thin `PdfDocument`. A single-thread `PageRenderer` produces `Bitmap`s (cached in an LRU) that a RecyclerView-based `PdfReaderView` displays one page per row. Pure layout/cache/validation logic is unit-tested on the JVM; rendering is covered by instrumented smoke tests.
 
-**Tech Stack:** AGP 9.1.1, Gradle 9.3.1 (built-in Kotlin), minSdk 24 / targetSdk 36, `com.artifex.mupdf:fitz:1.27.2`, AndroidX RecyclerView, JUnit4 + Robolectric (unit), AndroidX Test (instrumented).
+**Tech Stack:** AGP 9.1.1, Gradle 9.3.1 (built-in Kotlin), minSdk 24 / targetSdk 36, `com.artifex.mupdf:fitz:1.27.1` (latest published on maven.ghostscript.com, verified 2026-06-05), AndroidX RecyclerView, JUnit4 + Robolectric (unit), AndroidX Test (instrumented).
 
 **Spec:** `docs/superpowers/specs/2026-06-05-cleanpdf-viewer-design.md`
 
@@ -122,7 +122,7 @@ constraintlayout = "2.1.4"
 recyclerview = "1.3.2"
 robolectric = "4.14.1"
 lifecycle = "2.9.0"
-mupdfFitz = "1.27.2"
+mupdfFitz = "1.27.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -378,7 +378,7 @@ ls -la app/src/main/assets/sample.pdf   # confirm it exists and is non-zero
 - [ ] **Step 2: Verify the fitz artifact actually resolves (and fix repo if needed)**
 
 Run: `./gradlew :app:dependencies --configuration debugRuntimeClasspath | grep -i mupdf`
-Expected: a line containing `com.artifex.mupdf:fitz:1.27.2`.
+Expected: a line containing `com.artifex.mupdf:fitz:1.27.1`.
 
 If it does NOT resolve:
 1. Find the latest published version by listing the repo metadata:
@@ -455,7 +455,7 @@ class PdfDocument private constructor(private val doc: Document) {
 }
 ```
 
-> Spike note: confirm `AndroidDrawDevice.drawPage(Page, Matrix, Cookie)` exists in 1.27.2. If the
+> Spike note: confirm `AndroidDrawDevice.drawPage(Page, Matrix, Cookie)` exists in 1.27.1. If the
 > 3-arg overload is absent, use `AndroidDrawDevice.drawPage(page, ctm)` and drop the cookie param.
 > Reference: github.com/ArtifexSoftware/mupdf `platform/java/.../android/AndroidDrawDevice.java`.
 
@@ -870,7 +870,7 @@ class PageRenderer(private val doc: PdfDocument) {
 }
 ```
 
-> Spike note: confirm `Cookie` has `abort()` in 1.27.2 (it has historically). If not, drop the
+> Spike note: confirm `Cookie` has `abort()` in 1.27.1 (it has historically). If not, drop the
 > CancelableFuture wrapper and return the raw Future.
 
 - [ ] **Step 3: Build to verify it compiles**
@@ -1537,6 +1537,6 @@ git commit -m "test: add scroll/zoom smoke test; verify Phase 1 viewer manually"
 **Type consistency:** `PageSize(width,height,aspect)`, `PdfDocument.open/pageCount/pageSize/renderPage/needsPassword/authenticate/close`, `PageRenderer.submit/sizesBlockingOnRenderThread/shutdown/pageCount`, `BitmapCache.get/put/clear/scaleMilli` + `PageKey(page,scaleMilli)`, `LruByteSizedCache(maxBytes,sizeOf,onEvict).get/put/clear`, `PageLayout.compute/pageTop/pageHeight/totalHeight/contentWidth/visiblePages` — names are used identically across tasks. `PdfPageAdapter` gains `pageWidthPtsProvider` in Task 8 (and `PDF_BASE_WIDTH_HINT` is deleted there) — flagged in-task.
 
 **Known residual risks (verify during execution, not blockers):**
-1. Exact fitz 1.27.2 signatures (`AndroidDrawDevice.drawPage` arity, `Cookie.abort`) — Task 1/5 spike notes cover fallbacks.
+1. Exact fitz 1.27.1 signatures (`AndroidDrawDevice.drawPage` arity, `Cookie.abort`) — Task 1/5 spike notes cover fallbacks.
 2. fitz `.so` ABI coverage on the chosen emulator — Task 1 Step 6 covers.
 3. `maven.ghostscript.com` https vs http + published version — Task 0 Step 13 / Task 1 Step 2 cover.
