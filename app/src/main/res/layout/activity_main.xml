@@ -1,7 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<io.github.june690602_blip.cleanpdf.view.PdfReaderView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/reader"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/reader_bg" />
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.Material3.Dark.ActionBar" />
+
+    <io.github.june690602_blip.cleanpdf.view.PdfReaderView
+        android:id="@+id/reader"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/reader_bg" />
+</LinearLayout>
