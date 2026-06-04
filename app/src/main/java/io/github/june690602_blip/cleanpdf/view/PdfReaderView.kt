@@ -2,7 +2,6 @@ package io.github.june690602_blip.cleanpdf.view
 
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -29,10 +28,6 @@ class PdfReaderView @JvmOverloads constructor(
 
     private val scaleDetector = ScaleGestureDetector(context,
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-            override fun onScaleBegin(d: ScaleGestureDetector): Boolean {
-                parent?.requestDisallowInterceptTouchEvent(true)
-                return true
-            }
             override fun onScale(d: ScaleGestureDetector): Boolean {
                 liveScale = (liveScale * d.scaleFactor).coerceIn(minZoom / zoom, maxZoom / zoom)
                 scaleX = liveScale; scaleY = liveScale  // cheap visual feedback only
@@ -46,9 +41,7 @@ class PdfReaderView @JvmOverloads constructor(
     private val tapDetector = GestureDetector(context,
         object : GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent): Boolean {
-                val newZoom = if (zoom > 1.5f) 1f else 2.5f
-                Log.d("CleanPDF", "onDoubleTap fired: zoom $zoom -> $newZoom")
-                commitZoom(newZoom); return true
+                commitZoom(if (zoom > 1.5f) 1f else 2.5f); return true
             }
         })
 
@@ -76,25 +69,10 @@ class PdfReaderView @JvmOverloads constructor(
         liveScale = 1f; scaleX = 1f; scaleY = 1f
         if (clamped == zoom) return
         zoom = clamped
-        Log.d("CleanPDF", "commitZoom: zoom set to $zoom, relayouting")
         // Do NOT cache.clear() here: PageKey includes the quantized scale, so stale-scale bitmaps are
         // cache misses (re-rendered) and the LRU evicts them by budget. Clearing would recycle bitmaps
         // still attached to on-screen ImageViews and crash on the next draw.
         relayout()
-    }
-
-    /** Programmatic zoom toggle for testing (e.g. via adb). */
-    fun toggleZoomForTest() {
-        commitZoom(if (zoom > 1.5f) 1f else 2.5f)
-    }
-
-    override fun onInterceptTouchEvent(e: MotionEvent): Boolean {
-        // Feed every event to both detectors before RecyclerView decides to intercept.
-        // This ensures GestureDetector sees the full DOWN→DOWN sequence for double-tap,
-        // and ScaleGestureDetector can call requestDisallowInterceptTouchEvent on scale begin.
-        scaleDetector.onTouchEvent(e)
-        tapDetector.onTouchEvent(e)
-        return super.onInterceptTouchEvent(e)
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
