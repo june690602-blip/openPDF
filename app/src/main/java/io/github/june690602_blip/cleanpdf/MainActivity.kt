@@ -51,12 +51,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openFile(file: File) {
-        renderer?.shutdown()
+        // Build the new renderer fully before touching the old one, so a failed open leaves the
+        // current document intact. Shut the old renderer down only after the adapter has been
+        // swapped on the UI thread — shutting it earlier could make the still-installed old
+        // adapter submit a render to an already-shutdown executor (RejectedExecutionException).
         val doc = PdfDocument.open(file.absolutePath)
         val r = PageRenderer(doc)
         val sizes = r.sizesBlockingOnRenderThread()
+        val old = renderer
         renderer = r
-        runOnUiThread { reader.setDocument(r, sizes) }
+        runOnUiThread {
+            reader.setDocument(r, sizes)
+            old?.shutdown()
+        }
     }
 
     override fun onDestroy() { super.onDestroy(); renderer?.shutdown(); bg.shutdown() }
