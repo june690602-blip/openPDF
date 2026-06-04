@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">CleanPDF Viewer</string>
+    <string name="open_pdf">PDF 열기</string>
+    <string name="error_open">PDF를 열 수 없습니다</string>
+</resources>
