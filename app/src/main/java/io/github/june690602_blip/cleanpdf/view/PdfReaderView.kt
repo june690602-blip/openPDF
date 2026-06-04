@@ -70,8 +70,8 @@ class PdfReaderView @JvmOverloads constructor(
         if (clamped == zoom) return
         zoom = clamped
         // Do NOT cache.clear() here: PageKey includes the quantized scale, so stale-scale bitmaps are
-        // cache misses (re-rendered) and the LRU evicts them by budget. Clearing would recycle bitmaps
-        // still attached to on-screen ImageViews and crash on the next draw.
+        // simply cache misses (re-rendered at the new scale) and the LRU drops them by budget. Clearing
+        // would also throw away pages the user may immediately zoom back to.
         relayout()
     }
 
