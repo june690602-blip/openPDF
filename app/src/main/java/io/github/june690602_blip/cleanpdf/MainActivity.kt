@@ -10,7 +10,7 @@ import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
     private val bg = Executors.newSingleThreadExecutor()
-    private var renderer: PageRenderer? = null
+    @Volatile private var renderer: PageRenderer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

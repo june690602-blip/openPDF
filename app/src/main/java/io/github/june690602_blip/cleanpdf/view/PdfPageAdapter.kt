@@ -61,7 +61,10 @@ class PdfPageAdapter(
         }
     }
 
-    override fun onViewRecycled(holder: PageVH) { holder.pending?.cancel(true); holder.pending = null }
+    override fun onViewRecycled(holder: PageVH) {
+        holder.pending?.cancel(true); holder.pending = null
+        holder.image.setImageBitmap(null)
+    }
 
     class PageVH(itemView: FrameLayout, val image: ImageView) : RecyclerView.ViewHolder(itemView) {
         var pending: Future<*>? = null
