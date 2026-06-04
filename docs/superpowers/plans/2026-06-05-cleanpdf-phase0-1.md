@@ -10,6 +10,10 @@
 
 **Spec:** `docs/superpowers/specs/2026-06-05-cleanpdf-viewer-design.md`
 
+> **API corrections from the T1 spike (fitz 1.27.1, verified on device 2026-06-05):**
+> - `AndroidDrawDevice.drawPage` has **only** `(Page, Matrix)` / `(Page, Float)` / `(Page, Float, Int)` overloads — **no Cookie overload.** So `PdfDocument.renderPage(index, scale)` takes **no cookie**, and Task 5's `PageRenderer` must NOT use `Cookie`/`cookie.abort()`. Cancellation = `Future.cancel(true)` + an `isInterrupted` check before a render starts (an already-running `drawPage` cannot be aborted; acceptable — pages render fast). The cookie-based `CancelableFuture` in Task 5 Step 2 is replaced by a plain `Future` (corrected code provided at dispatch).
+> - `Page.getBounds()` is a **method**, not a Kotlin `.bounds` property. `Rect` fields are `x0,y0,x1,y1`.
+
 ---
 
 ## Conventions & Prerequisites
