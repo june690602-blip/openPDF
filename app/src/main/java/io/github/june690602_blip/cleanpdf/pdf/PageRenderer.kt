@@ -30,6 +30,10 @@ class PageRenderer(private val doc: PdfDocument) {
     fun searchBlocking(needle: String): List<SearchHit> =
         exec.submit<List<SearchHit>> { doc.search(needle) }.get()
 
+    /** Extract a page's text on the render thread (fitz access is single-threaded). Blocking. */
+    fun extractTextBlocking(page: Int): PageText =
+        exec.submit<PageText> { doc.extractText(page) }.get()
+
     /**
      * Render [page] at [scale]; deliver the bitmap via [onReady].
      * NOTE: [onReady] is invoked on the render thread — callers MUST post to the main thread

@@ -78,6 +78,32 @@ class PdfDocument private constructor(private val doc: Document) {
         return out
     }
 
+    /**
+     * Extract laid-out text for [index] as a [PageText] — chars in fitz reading order, bboxes in
+     * PDF points (y-down). Empty if the page has no extractable text (e.g. a scanned image).
+     * MUST be called on the render thread (it touches the fitz Document).
+     */
+    fun extractText(index: Int): PageText {
+        val page = doc.loadPage(index)
+        val stext = page.toStructuredText()
+        val chars = ArrayList<PageChar>()
+        var lineIndex = 0
+        for (block in stext.blocks) {
+            val lines = block.lines ?: continue
+            for (line in lines) {
+                val cs = line.chars ?: continue
+                for (ch in cs) {
+                    val r = ch.quad.toRect()
+                    chars.add(PageChar(ch.c, r.x0, r.y0, r.x1, r.y1, lineIndex))
+                }
+                lineIndex++
+            }
+        }
+        stext.destroy()
+        page.destroy()
+        return PageText(index, chars)
+    }
+
     fun close() = doc.destroy()
 
     companion object {
