@@ -264,6 +264,7 @@ class MainActivity : AppCompatActivity() {
 
     /** Enter search mode: show the bar, highlight all hits, jump to the first. */
     private fun openSearch(hits: List<SearchHit>) {
+        clearSelection()
         if (hits.isEmpty()) {
             android.widget.Toast.makeText(this, R.string.search_none, android.widget.Toast.LENGTH_SHORT).show()
             closeSearch()
@@ -297,6 +298,7 @@ class MainActivity : AppCompatActivity() {
 
     /** Long-press: extract the page's text off the UI thread, then select the word under the finger. */
     private fun beginSelection(page: Int, xPt: Float, yPt: Float) {
+        closeSearch()
         val r = renderer ?: return
         bg.execute {
             val text = r.extractTextBlocking(page)
