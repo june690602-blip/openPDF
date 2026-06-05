@@ -33,6 +33,13 @@ class PdfReaderView @JvmOverloads constructor(
     /** Invoked when the user long-presses on a page: (0-based page, x/y in PDF points). */
     var onLongPressPdf: ((page: Int, xPt: Float, yPt: Float) -> Unit)? = null
 
+    /** Invoked while dragging a selection handle: (page, x/y in PDF points, isStart handle). */
+    var onSelectionDragPdf: ((page: Int, xPt: Float, yPt: Float, isStart: Boolean) -> Unit)? = null
+
+    private enum class Handle { START, END }
+    private var draggingHandle: Handle? = null
+    private val grabRadiusPx = resources.displayMetrics.density * 24f
+
     private val minZoom = 1f
     private val maxZoom = 8f
     private var liveScale = 1f  // transient visual scale during an active pinch
@@ -138,6 +145,29 @@ class PdfReaderView @JvmOverloads constructor(
         onPageChanged?.invoke(page, sizes.size)
     }
 
+    private fun handleUnder(x: Float, y: Float): Handle? {
+        val page = selPage
+        if (page < 0) return null
+        val vh = findViewHolderForAdapterPosition(page) ?: return null
+        val cell = vh.itemView
+        val cw = lastLayout?.contentWidth ?: return null
+        val s = SelectionGeometry.scale(sizes[page].width, cw)
+        selStartPt?.let {
+            val p = SelectionGeometry.pointToPixels(it[0], it[1], s)
+            if (dist(x, y, cell.left + p[0], cell.top + p[1]) <= grabRadiusPx) return Handle.START
+        }
+        selEndPt?.let {
+            val p = SelectionGeometry.pointToPixels(it[0], it[1], s)
+            if (dist(x, y, cell.left + p[0], cell.top + p[1]) <= grabRadiusPx) return Handle.END
+        }
+        return null
+    }
+
+    private fun dist(ax: Float, ay: Float, bx: Float, by: Float): Float {
+        val dx = ax - bx; val dy = ay - by
+        return kotlin.math.sqrt(dx * dx + dy * dy)
+    }
+
     private fun relayout() {
         val r = renderer ?: return
         if (width == 0) { post { relayout() }; return }
@@ -157,7 +187,33 @@ class PdfReaderView @JvmOverloads constructor(
         relayout()
     }
 
+    override fun onInterceptTouchEvent(e: MotionEvent): Boolean {
+        if (e.actionMasked == MotionEvent.ACTION_DOWN && selPage >= 0) {
+            val h = handleUnder(e.x, e.y)
+            if (h != null) { draggingHandle = h; return true }
+        }
+        return super.onInterceptTouchEvent(e)
+    }
+
     override fun onTouchEvent(e: MotionEvent): Boolean {
+        val h = draggingHandle
+        if (h != null) {
+            when (e.actionMasked) {
+                MotionEvent.ACTION_MOVE -> {
+                    val page = selPage
+                    val vh = findViewHolderForAdapterPosition(page)
+                    val cw = lastLayout?.contentWidth
+                    if (vh != null && cw != null) {
+                        val cell = vh.itemView
+                        val s = SelectionGeometry.scale(sizes[page].width, cw)
+                        val pdf = SelectionGeometry.toPdfPoint(e.x - cell.left, e.y - cell.top, s)
+                        onSelectionDragPdf?.invoke(page, pdf[0], pdf[1], h == Handle.START)
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> draggingHandle = null
+            }
+            return true
+        }
         scaleDetector.onTouchEvent(e)
         tapDetector.onTouchEvent(e)
         return super.onTouchEvent(e) || scaleDetector.isInProgress
