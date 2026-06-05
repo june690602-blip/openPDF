@@ -30,6 +30,9 @@ class PdfReaderView @JvmOverloads constructor(
     /** Invoked with (0-based current page, total) when the first visible page changes. */
     var onPageChanged: ((current: Int, total: Int) -> Unit)? = null
 
+    /** Invoked when the user long-presses on a page: (0-based page, x/y in PDF points). */
+    var onLongPressPdf: ((page: Int, xPt: Float, yPt: Float) -> Unit)? = null
+
     private val minZoom = 1f
     private val maxZoom = 8f
     private var liveScale = 1f  // transient visual scale during an active pinch
@@ -51,6 +54,15 @@ class PdfReaderView @JvmOverloads constructor(
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 commitZoom(if (zoom > 1.5f) 1f else 2.5f); return true
             }
+            override fun onLongPress(e: MotionEvent) {
+                val child = findChildViewUnder(e.x, e.y) ?: return
+                val page = getChildAdapterPosition(child)
+                if (page == NO_POSITION) return
+                val cw = lastLayout?.contentWidth ?: return
+                val s = SelectionGeometry.scale(sizes[page].width, cw)
+                val pdf = SelectionGeometry.toPdfPoint(e.x - child.left, e.y - child.top, s)
+                onLongPressPdf?.invoke(page, pdf[0], pdf[1])
+            }
         })
 
     init {
@@ -66,6 +78,7 @@ class PdfReaderView @JvmOverloads constructor(
 
     /** Attach an opened document. [sizes] precomputed off-thread by the caller. */
     fun setDocument(renderer: PageRenderer, sizes: List<PageSize>) {
+        clearSelection()
         this.renderer = renderer; this.sizes = sizes
         // ~96MB bitmap budget (tune later); guard against tiny heaps.
         this.cache = BitmapCache(maxBytes = 96 * 1024 * 1024)
@@ -90,6 +103,24 @@ class PdfReaderView @JvmOverloads constructor(
 
     fun clearSearchHighlights() {
         adapterImpl?.setHighlights(emptyList(), null)
+    }
+
+    // Active selection mirror (PDF points) — kept so handle hit-testing can locate the handles
+    // without reaching into the adapter. selPage = -1 means "no selection".
+    private var selPage: Int = -1
+    private var selStartPt: FloatArray? = null
+    private var selEndPt: FloatArray? = null
+
+    /** Show a text selection on [page]: rects + handle anchors in PDF points. */
+    fun setSelection(page: Int, rectsPts: List<FloatArray>, startPt: FloatArray?, endPt: FloatArray?) {
+        selPage = page; selStartPt = startPt; selEndPt = endPt
+        adapterImpl?.setSelection(page, rectsPts, startPt, endPt)
+    }
+
+    /** Remove the text selection overlay and stop treating handles as grabbable. */
+    fun clearSelection() {
+        selPage = -1; selStartPt = null; selEndPt = null
+        adapterImpl?.clearSelection()
     }
 
     /**
