@@ -89,6 +89,14 @@ object TextSelection {
     }
 
     /**
+     * Move one endpoint of [range] to char [idx], keeping start <= end (the selection cannot invert).
+     * [isStart] true moves the start handle (clamped to <= current end); false moves the end handle
+     * (clamped to >= current start).
+     */
+    fun adjustRange(range: IntRange, idx: Int, isStart: Boolean): IntRange =
+        if (isStart) minOf(idx, range.last)..range.last else range.first..maxOf(idx, range.first)
+
+    /**
      * Start (bottom-left of the first selected char) and end (bottom-right of the last selected char)
      * handle anchor points, each as FloatArray[x,y] in PDF points; null if the page has no text.
      */

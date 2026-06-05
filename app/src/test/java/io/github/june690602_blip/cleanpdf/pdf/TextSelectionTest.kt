@@ -100,4 +100,13 @@ class TextSelectionTest {
     @Test fun handlePointsOnEmptyPageIsNull() {
         assertNull(TextSelection.handlePoints(PageText(0, emptyList()), 0..0))
     }
+
+    @Test fun adjustRangeMovesStartAndClampsToEnd() {
+        assertEquals(0..5, TextSelection.adjustRange(2..5, 0, isStart = true))   // extend start left
+        assertEquals(5..5, TextSelection.adjustRange(2..5, 9, isStart = true))   // start can't pass end
+    }
+    @Test fun adjustRangeMovesEndAndClampsToStart() {
+        assertEquals(2..9, TextSelection.adjustRange(2..5, 9, isStart = false))  // extend end right
+        assertEquals(2..2, TextSelection.adjustRange(2..5, 0, isStart = false))  // end can't pass start
+    }
 }

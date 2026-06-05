@@ -345,7 +345,7 @@ class MainActivity : AppCompatActivity() {
         if (text.pageIndex != page) return
         val idx = TextSelection.nearestCharIndex(text, xPt, yPt)
         if (idx < 0) return
-        selRange = if (isStart) minOf(idx, range.last)..range.last else range.first..maxOf(idx, range.first)
+        selRange = TextSelection.adjustRange(range, idx, isStart)
         applySelection()
     }
 
