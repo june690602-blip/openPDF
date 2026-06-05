@@ -66,4 +66,13 @@ class TextSelectionTest {
     @Test fun selectionRectsOnEmptyPageIsEmpty() {
         assertEquals(0, TextSelection.selectionRects(PageText(0, emptyList()), 0..0).size)
     }
+
+    @Test fun selectedTextJoinsCharsAndBreaksLines() {
+        assertEquals("AB\nC", TextSelection.selectedText(twoLines(), 0..2))
+        assertEquals("B\nC", TextSelection.selectedText(twoLines(), 1..2))
+    }
+
+    @Test fun selectedTextOnEmptyPageIsBlank() {
+        assertEquals("", TextSelection.selectedText(PageText(0, emptyList()), 0..0))
+    }
 }

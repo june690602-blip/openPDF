@@ -67,4 +67,19 @@ object TextSelection {
         }
         return out
     }
+
+    /** The selected text for [range]: chars concatenated in order, '\n' inserted at each line break. */
+    fun selectedText(page: PageText, range: IntRange): String {
+        if (page.isEmpty) return ""
+        val lo = range.first.coerceIn(0, page.chars.size - 1)
+        val hi = range.last.coerceIn(0, page.chars.size - 1)
+        val sb = StringBuilder()
+        var prevLine = page.chars[lo].lineIndex
+        for (i in lo..hi) {
+            val c = page.chars[i]
+            if (c.lineIndex != prevLine) { sb.append('\n'); prevLine = c.lineIndex }
+            sb.appendCodePoint(c.codepoint)
+        }
+        return sb.toString()
+    }
 }
