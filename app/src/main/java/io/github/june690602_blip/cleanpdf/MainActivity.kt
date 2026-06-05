@@ -1,5 +1,7 @@
 package io.github.june690602_blip.cleanpdf
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -16,8 +18,10 @@ import io.github.june690602_blip.cleanpdf.pdf.PageRenderer
 import io.github.june690602_blip.cleanpdf.pdf.PageSize
 import io.github.june690602_blip.cleanpdf.pdf.PdfDocument
 import io.github.june690602_blip.cleanpdf.pdf.PdfOpenResult
+import io.github.june690602_blip.cleanpdf.pdf.PageText
 import io.github.june690602_blip.cleanpdf.pdf.SearchCursor
 import io.github.june690602_blip.cleanpdf.pdf.SearchHit
+import io.github.june690602_blip.cleanpdf.pdf.TextSelection
 import io.github.june690602_blip.cleanpdf.view.PageJump
 import io.github.june690602_blip.cleanpdf.view.PdfReaderView
 import io.github.june690602_blip.cleanpdf.view.ThumbnailAdapter
@@ -33,6 +37,10 @@ class MainActivity : AppCompatActivity() {
     private var cursor: SearchCursor? = null
     private lateinit var searchBar: android.view.View
     private lateinit var searchPosition: android.widget.TextView
+    private var selText: PageText? = null
+    private var selRange: IntRange? = null
+    private lateinit var selectionBar: android.view.View
+    private lateinit var selectionInfo: android.widget.TextView
     private val recents by lazy { io.github.june690602_blip.cleanpdf.store.RecentFilesStore(this) }
 
     private val openDoc = registerForActivityResult(
@@ -50,6 +58,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<android.widget.Button>(R.id.search_prev_btn).setOnClickListener { stepSearch(-1) }
         findViewById<android.widget.Button>(R.id.search_next_btn).setOnClickListener { stepSearch(+1) }
         findViewById<android.widget.Button>(R.id.search_close_btn).setOnClickListener { closeSearch() }
+        selectionBar = findViewById(R.id.selection_bar)
+        selectionInfo = findViewById(R.id.selection_info)
+        findViewById<android.widget.Button>(R.id.selection_copy_btn).setOnClickListener { copySelection() }
+        findViewById<android.widget.Button>(R.id.selection_close_btn).setOnClickListener { clearSelection() }
+        reader.onLongPressPdf = { page, x, y -> beginSelection(page, x, y) }
+        reader.onSelectionDragPdf = { page, x, y, isStart -> dragSelection(page, x, y, isStart) }
         reader.onPageChanged = { cur, total ->
             supportActionBar?.subtitle = if (total > 0) "${cur + 1} / $total" else null
         }
@@ -277,6 +291,60 @@ class MainActivity : AppCompatActivity() {
         cursor = null
         searchBar.visibility = android.view.View.GONE
         reader.clearSearchHighlights()
+    }
+
+    /** Long-press: extract the page's text off the UI thread, then select the word under the finger. */
+    private fun beginSelection(page: Int, xPt: Float, yPt: Float) {
+        val r = renderer ?: return
+        bg.execute {
+            val text = r.extractTextBlocking(page)
+            runOnUiThread {
+                val range = TextSelection.wordRangeAt(text, xPt, yPt)
+                if (range == null) {
+                    android.widget.Toast.makeText(this, R.string.selection_none, android.widget.Toast.LENGTH_SHORT).show()
+                    return@runOnUiThread
+                }
+                selText = text; selRange = range
+                selectionBar.visibility = android.view.View.VISIBLE
+                applySelection()
+            }
+        }
+    }
+
+    /** Push the current [selRange] to the reader as overlay rects + handles, and update the count. */
+    private fun applySelection() {
+        val text = selText ?: return
+        val range = selRange ?: return
+        val rects = TextSelection.selectionRects(text, range)
+        val handles = TextSelection.handlePoints(text, range)
+        reader.setSelection(text.pageIndex, rects, handles?.first, handles?.second)
+        selectionInfo.text = getString(R.string.selection_chars, range.last - range.first + 1)
+    }
+
+    private fun copySelection() {
+        val text = selText ?: return
+        val range = selRange ?: return
+        val s = TextSelection.selectedText(text, range)
+        val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("pdf", s))
+        android.widget.Toast.makeText(this, R.string.selection_copied, android.widget.Toast.LENGTH_SHORT).show()
+    }
+
+    private fun clearSelection() {
+        selText = null; selRange = null
+        selectionBar.visibility = android.view.View.GONE
+        reader.clearSelection()
+    }
+
+    /** Drag a handle: snap it to the char under the finger, clamping so start <= end. */
+    private fun dragSelection(page: Int, xPt: Float, yPt: Float, isStart: Boolean) {
+        val text = selText ?: return
+        val range = selRange ?: return
+        if (text.pageIndex != page) return
+        val idx = TextSelection.nearestCharIndex(text, xPt, yPt)
+        if (idx < 0) return
+        selRange = if (isStart) minOf(idx, range.last)..range.last else range.first..maxOf(idx, range.first)
+        applySelection()
     }
 
     override fun onDestroy() { super.onDestroy(); renderer?.shutdown(); bg.shutdown() }
