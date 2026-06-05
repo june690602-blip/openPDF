@@ -119,8 +119,10 @@ class PdfPageAdapter(
                 val q = SelectionGeometry.rectToPixels(it, s)
                 RectF(q[0], q[1], q[2], q[3])
             }
-            val start = selStartPt?.let { SelectionGeometry.pointToPixels(it[0], it[1], s).let { p -> PointF(p[0], p[1]) } }
-            val end = selEndPt?.let { SelectionGeometry.pointToPixels(it[0], it[1], s).let { p -> PointF(p[0], p[1]) } }
+            val startPx = selStartPt?.let { SelectionGeometry.pointToPixels(it[0], it[1], s) }
+            val start = startPx?.let { PointF(it[0], it[1]) }
+            val endPx = selEndPt?.let { SelectionGeometry.pointToPixels(it[0], it[1], s) }
+            val end = endPx?.let { PointF(it[0], it[1]) }
             holder.selectionOverlay.setSelection(selRects, start, end)
         } else {
             holder.selectionOverlay.clear()
