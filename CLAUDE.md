@@ -18,19 +18,23 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 - **Phase 1 핸드오프 + Phase 2 백로그**: `docs/superpowers/handoff/2026-06-05-cleanpdf-phase1-handoff.md`
 - Phase 2 plan (다음 작업): `docs/superpowers/plans/2026-06-05-cleanpdf-phase2-intake.md`
 
-## Status (2026-06-05) — Phase 1 완료, `main` 병합됨
+## Status (2026-06-05) — Phase 2 완료, `main` 병합됨
 
-**현재 `main` HEAD: 핸드오프 문서 / Phase 1 코드 = `04602cb`.** 연속 스크롤 + 핀치/더블탭 줌 + 임의 PDF 열기(SAF)까지 동작.
+**현재 `main` HEAD: Phase 2 코드 = `d21fd63`.** 연속 스크롤 + 핀치/더블탭 줌 + 임의 PDF 열기(SAF) + 카톡 등 VIEW/SEND 인텐트로 받기 + 에러/암호 화면 + 최근 파일까지 동작.
 
 ### 작동 중 ✅
 - **연속 세로 스크롤** — RecyclerView, 온디맨드 백그라운드 렌더, 가시 페이지만 렌더(±버퍼).
 - **핀치 줌 + 더블탭 줌(1↔2.5배), 최대 8배** — 핀치 중 라이브 프리뷰(scaleX/Y), 손 떼면 정밀 재렌더.
-- **임의 PDF 열기** — 툴바 오버플로 "PDF 열기" → SAF `OpenDocument`(application/pdf) → `PdfSource.copyToCache` → 렌더. 샘플 `assets/sample.pdf` 첫 실행 자동 오픈(dev 편의).
-- **테스트** — 단위 18(`LruByteSizedCache`5 + `PageLayout`5 + `PdfValidation`5 + `RenderScale`3), 계측 2(`RenderSmokeTest` + `ScrollZoomSmokeTest`). 실기기(emulator) 스크롤·줌·열기 검증.
+- **임의 PDF 열기** — 툴바 오버플로 "PDF 열기" → SAF `OpenDocument`(application/pdf) → `PdfSource.copyToCache` → 렌더. 샘플 `assets/sample.pdf` 는 인입 인텐트가 없을 때만 첫 실행 자동 오픈(dev 편의).
+- **파일 받기 (Phase 2)** — 카톡 등 외부앱 "열기(VIEW)" + 시스템 공유시트 "공유(SEND)" 수신. `AndroidManifest` VIEW/SEND 필터(application/pdf·x-pdf·octet-stream — 카톡 octet-stream 대비). `Intents.incomingUri`(순수 셀렉터, 단위테스트) → `MainActivity.onCreate` 분기(`IntentCompat.getParcelableExtra` 로 SEND `EXTRA_STREAM`) → `PdfSource.looksLikePdf`(`isLikelyPdf` 게이트, 비-PDF 파싱 전 차단) → `copyToCache`(content:// 핸들 만료 회피) → 열람. ⚠️ 안드16(S25+) 카톡 미리보기 "열기"는 패키지 가시성 한계 → SEND 경로 권장(opendwg Phase 11.2 동일 이슈).
+- **에러/암호 화면 (Phase 2)** — `PdfDocument.openResult` → `PdfOpenResult`(Success/NeedsPassword/Error). 손상·비-PDF → 에러 오버레이(`error_view`), 암호 PDF → 비번 다이얼로그(`needsPassword()/authenticate()`, 오답 시 재입력). 기존의 조용한 `runCatching` 실패 삼킴 제거.
+- **최근 파일 (Phase 2)** — `RecentFilesStore`(SharedPreferences, 불변 `RecentFile`, newest-first·dedup·cap=10). 열람 시 기록, 오버플로 "최근 파일" → 다이얼로그에서 재열람(캐시에서 사라진 항목은 안내 후 목록서 제거).
+- **테스트** — 단위 26(`LruByteSizedCache`5 + `PageLayout`5 + `PdfValidation`5 + `RenderScale`3 + `Intents`4 + `RecentFilesLogic`4), 계측 3(`RenderSmokeTest` + `ScrollZoomSmokeTest` + `IntentIntakeSmokeTest`). 실기(emulator) VIEW/SEND 인입·비-PDF 에러·최근 재열람 검증, 크래시 0. ⚠️ `RecentFilesLogic` 은 org.json 때문에 Robolectric 러너 사용(`@Config(sdk=[34])` — Robolectric 4.14.1 이 API 36 미지원).
 
-### 진행 중 ⏳ — 다음 세션 = Phase 2 "파일 받기"
-- 카톡 등 외부앱 VIEW/SEND 인텐트 수신 → `isLikelyPdf` 게이트 → 열람. + 친절한 에러 화면(`PdfOpenResult` 연결) + 최근 파일.
-- 상세: `docs/superpowers/plans/2026-06-05-cleanpdf-phase2-intake.md`. 재사용 가능한 기존 조각: `PdfSource.copyToCache`, `isLikelyPdf`(테스트됨), `PdfOpenResult`(모델만, 미연결), `PdfDocument.needsPassword()/authenticate()`.
+### 진행 중 ⏳ — 다음 세션 = Phase 3 (목차/썸네일/페이지 점프)
+- 스펙 §11 로드맵 다음 기능: outline(목차)·썸네일·페이지 점프. 이후 검색(4)·텍스트 선택(5)·다크/야간 반전(6)·출시 준비(7, **AGPL 고지 필수** + GitHub 공개 레포 — 현재 원격 없음).
+- **미검증(실기/픽스처 필요, 다음 세션/사용자 확인)**: 실제 카톡 SEND·VIEW(사용자 S25 기기), 암호 PDF 비번 다이얼로그(암호화 PDF 픽스처 없어 런타임 미검증 — 코드는 배선·컴파일됨), 최근항목 캐시삭제 토스트(`f.exists()` 분기, 로직만).
+- 상세: `docs/superpowers/handoff/2026-06-05-cleanpdf-phase2-handoff.md`.
 
 ## ⚠️ 아키텍처 불변조건 (깨면 크래시/OOM 재발 — 절대 되돌리지 말 것)
 > 상세 근거: 핸드오프 문서 §2. 대부분 코드 주석에도 있음.
