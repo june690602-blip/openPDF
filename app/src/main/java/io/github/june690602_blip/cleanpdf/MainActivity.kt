@@ -7,13 +7,18 @@ import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
+import io.github.june690602_blip.cleanpdf.cache.BitmapCache
 import io.github.june690602_blip.cleanpdf.io.PdfSource
 import io.github.june690602_blip.cleanpdf.pdf.PageRenderer
+import io.github.june690602_blip.cleanpdf.pdf.PageSize
 import io.github.june690602_blip.cleanpdf.pdf.PdfDocument
 import io.github.june690602_blip.cleanpdf.pdf.PdfOpenResult
 import io.github.june690602_blip.cleanpdf.view.PageJump
 import io.github.june690602_blip.cleanpdf.view.PdfReaderView
+import io.github.june690602_blip.cleanpdf.view.ThumbnailAdapter
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -22,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var renderer: PageRenderer? = null
     private lateinit var reader: PdfReaderView
     private lateinit var errorView: android.widget.TextView
+    private var currentSizes: List<PageSize> = emptyList()
     private val recents by lazy { io.github.june690602_blip.cleanpdf.store.RecentFilesStore(this) }
 
     private val openDoc = registerForActivityResult(
@@ -64,6 +70,7 @@ class MainActivity : AppCompatActivity() {
         R.id.action_recent -> { showRecent(); true }
         R.id.action_outline -> { showOutline(); true }
         R.id.action_goto -> { promptGoto(); true }
+        R.id.action_thumbnails -> { showThumbnails(); true }
         else -> super.onOptionsItemSelected(item)
     }
 
@@ -93,6 +100,7 @@ class MainActivity : AppCompatActivity() {
         renderer = r
         recents.add(file.absolutePath, file.name)
         runOnUiThread {
+            currentSizes = sizes
             errorView.visibility = android.view.View.GONE
             reader.visibility = android.view.View.VISIBLE
             reader.setDocument(r, sizes)
@@ -183,6 +191,31 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
+    }
+
+    private fun showThumbnails() {
+        val r = renderer ?: return
+        if (currentSizes.isEmpty()) return
+        val cell = (resources.displayMetrics.density * 96).toInt() // ~96dp thumbnail width
+        val cache = BitmapCache(maxBytes = 32 * 1024 * 1024)
+        val grid = RecyclerView(this).apply {
+            layoutManager = GridLayoutManager(this@MainActivity, 3)
+        }
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.thumbnails)
+            .setView(grid)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+        grid.adapter = ThumbnailAdapter(
+            renderer = r,
+            sizes = currentSizes,
+            cache = cache,
+            cellWidthPx = cell,
+        ) { page ->
+            reader.scrollToPage(page)
+            dialog.dismiss()
+        }
+        dialog.show()
     }
 
     override fun onDestroy() { super.onDestroy(); renderer?.shutdown(); bg.shutdown() }

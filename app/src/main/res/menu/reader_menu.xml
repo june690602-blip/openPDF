@@ -15,4 +15,8 @@
         android:id="@+id/action_goto"
         android:title="@string/goto_title"
         android:showAsAction="never" />
+    <item
+        android:id="@+id/action_thumbnails"
+        android:title="@string/thumbnails"
+        android:showAsAction="never" />
 </menu>
