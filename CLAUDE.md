@@ -14,13 +14,13 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 
 ## Key docs (read these first to get oriented)
 - Design spec — all decisions: `docs/superpowers/specs/2026-06-05-cleanpdf-viewer-design.md`
-- 계획서(완료): Phase 0–1 / Phase 2(intake) / Phase 3(navigation) / Phase 3.5(thumbnails) / Phase 4(search) — `docs/superpowers/plans/`
-- 핸드오프: Phase 1 / Phase 2 / Phase 3·3.5 / **Phase 4** — `docs/superpowers/handoff/`
-- **다음 작업 — Phase 4.5(검색 하이라이트 + 순차 이동) 계획**: `docs/superpowers/plans/2026-06-05-cleanpdf-phase4_5-highlight.md`
+- 계획서(완료): Phase 0–1 / Phase 2(intake) / Phase 3(navigation) / Phase 3.5(thumbnails) / Phase 4(search) / Phase 4.5(highlight) — `docs/superpowers/plans/`
+- 핸드오프: Phase 1 / Phase 2 / Phase 3·3.5 / Phase 4 / **Phase 4.5** — `docs/superpowers/handoff/`
+- **다음 작업 — Phase 5(텍스트 선택·복사)**: 계획 예정
 
-## Status (2026-06-05) — Phase 4(검색) 완료, `main` 병합됨
+## Status (2026-06-06) — Phase 4.5(검색 하이라이트 + 순차 이동) 완료, `main` 병합됨
 
-**현재 `main` HEAD: Phase 4 = `0cf0c35`.** 연속 스크롤 + 줌 + 임의 PDF 열기(SAF) + 카톡 VIEW/SEND 인입 + 에러/암호 화면 + 최근 파일 + 탐색(목차·페이지점프·번호점프·썸네일) + **전체 텍스트 검색(찾기→히트수→페이지 점프)**까지 동작.
+**현재 `main` HEAD: Phase 4.5 코드 = `2a81170`.** 연속 스크롤 + 줌 + 임의 PDF 열기(SAF) + 카톡 VIEW/SEND 인입 + 에러/암호 화면 + 최근 파일 + 탐색(목차·페이지점프·번호점프·썸네일) + **전체 텍스트 검색(하이라이트 + 검색바 순차 이동 + 자동 스크롤)**까지 동작.
 
 ### 작동 중 ✅
 - **연속 세로 스크롤** — RecyclerView, 온디맨드 백그라운드 렌더, 가시 페이지만 렌더(±버퍼).
@@ -31,13 +31,14 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 - **최근 파일 (Phase 2)** — `RecentFilesStore`(SharedPreferences, 불변, newest-first·dedup·cap10).
 - **탐색 — 목차/페이지점프 (Phase 3)** — 목차(`PdfDocument.loadOutline` via fitz `resolveLink`/`pageNumberFromLocation`, **렌더 스레드**에서 `loadOutlineBlocking`)·페이지 점프(`PdfReaderView.scrollToPage`)·페이지번호 입력 점프(순수 `PageJump`)·툴바 "N/전체" 인디케이터(`onPageChanged`).
 - **썸네일 (Phase 3.5)** — 오버플로 "썸네일" → **AlertDialog 3열 그리드**(`ThumbnailAdapter` — 렌더러 공유 + 자체 작은 캐시 + recycle 금지) → 셀 탭 점프.
-- **검색 (Phase 4)** — 오버플로 "검색" → 검색어 입력 → fitz `Page.search(needle, SEARCH_IGNORE_CASE): Quad[][]`(렌더 스레드 `PageRenderer.searchBlocking`)로 전체 페이지 검색, 히트별 quad 합집합 bbox를 `SearchHit(page,x0..y1)` 로 → 결과 다이얼로그(제목 "N건" + "M쪽" 목록, 순수 `SearchHits.labels`) → 항목 탭 시 `scrollToPage`. `maxHits=500` 상한. **하이라이트/순차 다음·이전은 Phase 4.5로 분리**(렌더 어댑터 침습 최소화).
-- **테스트** — 단위 35(LruByteSizedCache5+PageLayout5+PdfValidation5+RenderScale3+Intents4+RecentFilesLogic4+PageJump5+OutlineModel2+SearchHits2), 계측 5(Render+ScrollZoom+IntentIntake+Navigation+SearchSmoke). ⚠️ `RecentFilesLogic` 은 org.json 때문에 Robolectric(`@Config sdk=34`) — 이후 순수 직렬화로 바꾸면 함정 제거 가능.
+- **검색 (Phase 4)** — 오버플로 "검색" → 검색어 입력 → fitz `Page.search(needle, SEARCH_IGNORE_CASE): Quad[][]`(렌더 스레드 `PageRenderer.searchBlocking`)로 전체 페이지 검색, 히트별 quad 합집합 bbox를 `SearchHit(page,x0..y1)` 로. `maxHits=500` 상한.
+- **검색 하이라이트 + 순차 이동 (Phase 4.5)** — 검색 시 결과 다이얼로그 대신 **하단 검색바**(◀ 현재/전체 ▶ + 닫기) + **형광 하이라이트 오버레이** + 첫 히트 자동 스크롤. `HighlightOverlayView`를 페이지 셀 `FrameLayout`에 얹음(**비트맵 캐시 미오염**, recycle 0). 순수 `SearchCursor`(wrapping next/prev) + 순수 `HighlightGeometry`(PDF점→셀픽셀, `FloatArray`). `PdfReaderView.scrollToHit`(lastLayout scale)·`setSearchHighlights`. 활성 hit=진한 주황, 나머지=연한 노랑. 좌표계 y-down(뒤집기 불필요, 실기 확인).
+- **테스트** — 단위 43(LruByteSizedCache5+PageLayout5+PdfValidation5+RenderScale3+Intents4+RecentFilesLogic4+PageJump5+OutlineModel2+SearchHits2+SearchCursor5+HighlightGeometry3), 계측 6(Render+ScrollZoom+IntentIntake+Navigation+SearchSmoke+SearchHighlight). ⚠️ `RecentFilesLogic` 은 org.json 때문에 Robolectric(`@Config sdk=34`) — 이후 순수 직렬화로 바꾸면 함정 제거 가능.
 
-### 진행 중 ⏳ — 다음 = Phase 4.5 (검색 하이라이트 + 순차 이동)
-- 스펙 §5.3 나머지: 검색바(prev/next/count) + 히트 하이라이트 오버레이 + `scrollToHit`. 핵심: 순수 `SearchCursor`(히트목록+현재위치+다음/이전 wrapping, TDD) + `SearchHit` rect(PDF 포인트)→페이지 픽셀 좌표 변환. **렌더 어댑터 침습 주의**(불변조건 단일 렌더 스레드·recycle 금지). Phase 4는 히트 목록+점프까지만 했고, 다음/이전·하이라이트를 여기서 마저. 계획: `plans/2026-06-05-cleanpdf-phase4_5-highlight.md`.
-- 이후 Phase 5 선택·복사 / Phase 6 다크·야간반전 / Phase 7 출시(**AGPL 고지** + GitHub 공개 레포 — 현재 원격 없음).
-- **미검증(실기/픽스처)**: 실제 카톡 SEND·VIEW(S25), 암호 PDF 다이얼로그(픽스처 없음), 목차 점프(목차 있는 실제 PDF 필요).
+### 진행 중 ⏳ — 다음 = Phase 5 (텍스트 선택·복사)
+- 스펙: 길게 눌러 텍스트 선택 → 복사. fitz `StructuredText`/`Page` 텍스트 추출 + 선택 핸들 UI. 검색 하이라이트 오버레이 패턴(`HighlightOverlayView`/`HighlightGeometry` 좌표변환) 재사용 여지.
+- 이후 Phase 6 다크·야간반전 / Phase 7 출시(**AGPL 고지** + GitHub 공개 레포 — 현재 원격 없음).
+- **미검증(실기/픽스처)**: 실제 카톡 SEND·VIEW(S25), 암호 PDF 다이얼로그(픽스처 없음), 목차 점프(목차 있는 실제 PDF 필요), 검색 하이라이트 줌-후 정렬(코드상 relayout 재계산 보장, 핀치 실기 미캡처).
 
 ## ⚠️ 아키텍처 불변조건 (깨면 크래시/OOM 재발 — 절대 되돌리지 말 것)
 > 상세 근거: 핸드오프 문서 §2. 대부분 코드 주석에도 있음.
