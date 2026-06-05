@@ -31,5 +31,50 @@
             android:textColor="#FFFFFFFF"
             android:textSize="16sp"
             android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/search_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="horizontal"
+            android:background="?attr/colorPrimary"
+            android:gravity="center_vertical"
+            android:padding="4dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/search_position"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:paddingStart="12dp"
+                android:textColor="#FFFFFFFF"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/search_prev_btn"
+                style="?attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/search_prev"
+                android:textColor="#FFFFFFFF" />
+
+            <Button
+                android:id="@+id/search_next_btn"
+                style="?attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/search_next"
+                android:textColor="#FFFFFFFF" />
+
+            <Button
+                android:id="@+id/search_close_btn"
+                style="?attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/search_close"
+                android:textColor="#FFFFFFFF" />
+        </LinearLayout>
     </FrameLayout>
 </LinearLayout>

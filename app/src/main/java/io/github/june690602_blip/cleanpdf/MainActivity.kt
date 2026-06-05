@@ -16,8 +16,8 @@ import io.github.june690602_blip.cleanpdf.pdf.PageRenderer
 import io.github.june690602_blip.cleanpdf.pdf.PageSize
 import io.github.june690602_blip.cleanpdf.pdf.PdfDocument
 import io.github.june690602_blip.cleanpdf.pdf.PdfOpenResult
+import io.github.june690602_blip.cleanpdf.pdf.SearchCursor
 import io.github.june690602_blip.cleanpdf.pdf.SearchHit
-import io.github.june690602_blip.cleanpdf.pdf.SearchHits
 import io.github.june690602_blip.cleanpdf.view.PageJump
 import io.github.june690602_blip.cleanpdf.view.PdfReaderView
 import io.github.june690602_blip.cleanpdf.view.ThumbnailAdapter
@@ -30,6 +30,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var reader: PdfReaderView
     private lateinit var errorView: android.widget.TextView
     private var currentSizes: List<PageSize> = emptyList()
+    private var cursor: SearchCursor? = null
+    private lateinit var searchBar: android.view.View
+    private lateinit var searchPosition: android.widget.TextView
     private val recents by lazy { io.github.june690602_blip.cleanpdf.store.RecentFilesStore(this) }
 
     private val openDoc = registerForActivityResult(
@@ -42,6 +45,11 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(findViewById<MaterialToolbar>(R.id.toolbar))
         reader = findViewById(R.id.reader)
         errorView = findViewById(R.id.error_view)
+        searchBar = findViewById(R.id.search_bar)
+        searchPosition = findViewById(R.id.search_position)
+        findViewById<android.widget.Button>(R.id.search_prev_btn).setOnClickListener { stepSearch(-1) }
+        findViewById<android.widget.Button>(R.id.search_next_btn).setOnClickListener { stepSearch(+1) }
+        findViewById<android.widget.Button>(R.id.search_close_btn).setOnClickListener { closeSearch() }
         reader.onPageChanged = { cur, total ->
             supportActionBar?.subtitle = if (total > 0) "${cur + 1} / $total" else null
         }
@@ -231,23 +239,44 @@ class MainActivity : AppCompatActivity() {
                 val q = input.text.toString()
                 bg.execute {
                     val hits = r.searchBlocking(q)
-                    runOnUiThread { showSearchResults(hits) }
+                    runOnUiThread { openSearch(hits) }
                 }
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
-    private fun showSearchResults(hits: List<SearchHit>) {
+    /** Enter search mode: show the bar, highlight all hits, jump to the first. */
+    private fun openSearch(hits: List<SearchHit>) {
         if (hits.isEmpty()) {
             android.widget.Toast.makeText(this, R.string.search_none, android.widget.Toast.LENGTH_SHORT).show()
+            closeSearch()
             return
         }
-        val labels = SearchHits.labels(hits).toTypedArray()
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.search_count, hits.size))
-            .setItems(labels) { _, which -> reader.scrollToPage(hits[which].page) }
-            .show()
+        val c = SearchCursor(hits)
+        cursor = c
+        searchBar.visibility = android.view.View.VISIBLE
+        applyCursor(c)
+    }
+
+    /** Move the active hit by [delta] (+1 next / -1 prev), wrapping. */
+    private fun stepSearch(delta: Int) {
+        val c = cursor ?: return
+        val moved = if (delta >= 0) c.next() else c.prev()
+        cursor = moved
+        applyCursor(moved)
+    }
+
+    private fun applyCursor(c: SearchCursor) {
+        reader.setSearchHighlights(c.hits, c.current)
+        c.current?.let { reader.scrollToHit(it) }
+        searchPosition.text = getString(R.string.search_position, c.position, c.size)
+    }
+
+    private fun closeSearch() {
+        cursor = null
+        searchBar.visibility = android.view.View.GONE
+        reader.clearSearchHighlights()
     }
 
     override fun onDestroy() { super.onDestroy(); renderer?.shutdown(); bg.shutdown() }
