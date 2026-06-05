@@ -129,6 +129,8 @@ class MainActivity : AppCompatActivity() {
             errorView.visibility = android.view.View.GONE
             reader.visibility = android.view.View.VISIBLE
             reader.setDocument(r, sizes)
+            selText = null; selRange = null
+            selectionBar.visibility = android.view.View.GONE
             old?.shutdown()
         }
     }
