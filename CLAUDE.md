@@ -18,9 +18,9 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 - 핸드오프: Phase 1 / Phase 2 / Phase 3·3.5 / Phase 4 / **Phase 4.5** — `docs/superpowers/handoff/`
 - **다음 작업 — Phase 5(텍스트 선택·복사)**: 계획 예정
 
-## Status (2026-06-06) — Phase 4.5(검색 하이라이트 + 순차 이동) 완료, `main` 병합됨
+## Status (2026-06-06) — Phase 5(텍스트 선택·복사) 완료, 브랜치 `feat/phase5-text-selection` (main 병합 대기)
 
-**현재 `main` HEAD: Phase 4.5 코드 = `2a81170`.** 연속 스크롤 + 줌 + 임의 PDF 열기(SAF) + 카톡 VIEW/SEND 인입 + 에러/암호 화면 + 최근 파일 + 탐색(목차·페이지점프·번호점프·썸네일) + **전체 텍스트 검색(하이라이트 + 검색바 순차 이동 + 자동 스크롤)**까지 동작.
+**main HEAD: `4564499`(Phase 4.5 문서). Phase 5 코드는 브랜치 `feat/phase5-text-selection`(미병합).** 연속 스크롤 + 줌 + 임의 PDF 열기(SAF) + 카톡 VIEW/SEND 인입 + 에러/암호 화면 + 최근 파일 + 탐색(목차·페이지점프·번호점프·썸네일) + 전체 텍스트 검색(하이라이트+순차이동) + **텍스트 길게눌러 단어 선택·핸들 드래그·클립보드 복사**까지 동작.
 
 ### 작동 중 ✅
 - **연속 세로 스크롤** — RecyclerView, 온디맨드 백그라운드 렌더, 가시 페이지만 렌더(±버퍼).
@@ -33,11 +33,13 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 - **썸네일 (Phase 3.5)** — 오버플로 "썸네일" → **AlertDialog 3열 그리드**(`ThumbnailAdapter` — 렌더러 공유 + 자체 작은 캐시 + recycle 금지) → 셀 탭 점프.
 - **검색 (Phase 4)** — 오버플로 "검색" → 검색어 입력 → fitz `Page.search(needle, SEARCH_IGNORE_CASE): Quad[][]`(렌더 스레드 `PageRenderer.searchBlocking`)로 전체 페이지 검색, 히트별 quad 합집합 bbox를 `SearchHit(page,x0..y1)` 로. `maxHits=500` 상한.
 - **검색 하이라이트 + 순차 이동 (Phase 4.5)** — 검색 시 결과 다이얼로그 대신 **하단 검색바**(◀ 현재/전체 ▶ + 닫기) + **형광 하이라이트 오버레이** + 첫 히트 자동 스크롤. `HighlightOverlayView`를 페이지 셀 `FrameLayout`에 얹음(**비트맵 캐시 미오염**, recycle 0). 순수 `SearchCursor`(wrapping next/prev) + 순수 `HighlightGeometry`(PDF점→셀픽셀, `FloatArray`). `PdfReaderView.scrollToHit`(lastLayout scale)·`setSearchHighlights`. 활성 hit=진한 주황, 나머지=연한 노랑. 좌표계 y-down(뒤집기 불필요, 실기 확인).
-- **테스트** — 단위 43(LruByteSizedCache5+PageLayout5+PdfValidation5+RenderScale3+Intents4+RecentFilesLogic4+PageJump5+OutlineModel2+SearchHits2+SearchCursor5+HighlightGeometry3), 계측 6(Render+ScrollZoom+IntentIntake+Navigation+SearchSmoke+SearchHighlight). ⚠️ `RecentFilesLogic` 은 org.json 때문에 Robolectric(`@Config sdk=34`) — 이후 순수 직렬화로 바꾸면 함정 제거 가능.
+- **텍스트 선택·복사 (Phase 5)** — 길게 누르면 단어 스냅 선택 → 시작/끝 핸들 드래그로 범위 조절 → 하단 바 "N자 선택 / 복사 / 닫기"로 클립보드 복사. **순수 모델 엔진**: long-press 시 fitz `Page.toStructuredText().getBlocks()`로 페이지 1회 파싱 → 불변 `PageText`(문자 codepoint+bbox, android/fitz 타입 0) → 선택범위/하이라이트rect/복사문자열/핸들좌표는 전부 순수 Kotlin(`pdf/TextSelection`, JVM 단위테스트, 드래그 중 렌더스레드 왕복 0, 하이라이트=복사 WYSIWYG). 추출은 렌더 스레드(`PageRenderer.extractTextBlocking`→`PdfDocument.extractText`). 선택은 PDF점 저장→`onBind`에서 셀픽셀 재투영(줌 자동 추종, 실기 2.5배 정렬 확인). 오버레이 뷰(`view/SelectionOverlayView`, 비트맵/캐시 미오염, 캐시-히트 early-return **前** 적용). 핸들 grab 시 스크롤 가로채기(`onInterceptTouchEvent`), **핀치 중 미가로채기**(`!scaleDetector.isInProgress`). 좌표변환 `view/SelectionGeometry`(역변환 px→pt 포함). MainActivity는 검색과 동일한 controller-folded 패턴(begin/apply/drag/copy/close). **단일 페이지 범위**(교차페이지 미지원). 빈 영역 long-press=최근접 단어 스냅; 텍스트-없는 페이지만 "선택할 텍스트 없음" 토스트.
+- **테스트** — 단위 58(기존43 + TextSelection12 + SelectionGeometry3), 계측 8(기존6 + TextExtraction + TextSelection). 기존 단위 43=LruByteSizedCache5+PageLayout5+PdfValidation5+RenderScale3+Intents4+RecentFilesLogic4+PageJump5+OutlineModel2+SearchHits2+SearchCursor5+HighlightGeometry3. ⚠️ `RecentFilesLogic` 은 org.json 때문에 Robolectric(`@Config sdk=34`) — 이후 순수 직렬화로 바꾸면 함정 제거 가능. ⚠️ `connectedDebugAndroidTest`는 실행 후 앱 APK를 **언인스톨**함 — 실기 수동검증은 그 전에(또는 `installDebug` 재설치 후).
 
-### 진행 중 ⏳ — 다음 = Phase 5 (텍스트 선택·복사)
-- 스펙: 길게 눌러 텍스트 선택 → 복사. fitz `StructuredText`/`Page` 텍스트 추출 + 선택 핸들 UI. 검색 하이라이트 오버레이 패턴(`HighlightOverlayView`/`HighlightGeometry` 좌표변환) 재사용 여지.
-- 이후 Phase 6 다크·야간반전 / Phase 7 출시(**AGPL 고지** + GitHub 공개 레포 — 현재 원격 없음).
+### 진행 중 ⏳ — 다음 = Phase 6 (다크모드 + 야간 읽기)
+- 스펙: 앱 크롬 다크(`values-night`) + **페이지 색 반전 토글**(어두운 곳 가독성) + 설정 화면.
+- 이후 Phase 7 출시(**AGPL 고지** + GitHub 공개 레포 — 현재 원격 없음).
+- **Phase 5 후속(미구현, 우선순위 낮음)**: 교차페이지 선택(현재 단일페이지), 핸들 드로어블 teardrop화, `MainActivity`(현 353줄)에 3번째 제스처 추가 시 `TextSelectionController` 추출, 텍스트-없는(스캔) PDF의 `selection_none` 토스트는 단위테스트로만 검증(실기 픽스처 없음).
 - **미검증(실기/픽스처)**: 실제 카톡 SEND·VIEW(S25), 암호 PDF 다이얼로그(픽스처 없음), 목차 점프(목차 있는 실제 PDF 필요), 검색 하이라이트 줌-후 정렬(코드상 relayout 재계산 보장, 핀치 실기 미캡처).
 
 ## ⚠️ 아키텍처 불변조건 (깨면 크래시/OOM 재발 — 절대 되돌리지 말 것)
