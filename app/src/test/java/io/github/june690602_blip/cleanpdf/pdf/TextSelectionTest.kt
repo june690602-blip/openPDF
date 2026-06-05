@@ -31,4 +31,18 @@ class TextSelectionTest {
     @Test fun nearestOnEmptyPageIsMinusOne() {
         assertEquals(-1, TextSelection.nearestCharIndex(PageText(0, emptyList()), 5f, 6f))
     }
+
+    @Test fun wordRangeSnapsToSurroundingNonWhitespaceRun() {
+        val p = sample()
+        assertEquals(0..1, TextSelection.wordRangeAt(p, 5f, 6f))   // "Hi"
+        assertEquals(3..7, TextSelection.wordRangeAt(p, 40f, 6f))  // "there"
+    }
+
+    @Test fun wordRangeOnWhitespaceSelectsThatChar() {
+        assertEquals(2..2, TextSelection.wordRangeAt(sample(), 18f, 6f)) // the space
+    }
+
+    @Test fun wordRangeOnEmptyPageIsNull() {
+        assertNull(TextSelection.wordRangeAt(PageText(0, emptyList()), 0f, 0f))
+    }
 }

@@ -24,4 +24,23 @@ object TextSelection {
         }
         return best
     }
+
+    /**
+     * The word (a run of non-whitespace chars on a single line) at PDF point ([x],[y]); null if the
+     * page has no text. If the nearest char is itself whitespace, selects just that char.
+     */
+    fun wordRangeAt(page: PageText, x: Float, y: Float): IntRange? {
+        val i = nearestCharIndex(page, x, y)
+        if (i < 0) return null
+        val chars = page.chars
+        if (isWhitespace(chars[i].codepoint)) return i..i
+        val line = chars[i].lineIndex
+        var s = i
+        while (s - 1 >= 0 && chars[s - 1].lineIndex == line && !isWhitespace(chars[s - 1].codepoint)) s--
+        var e = i
+        while (e + 1 < chars.size && chars[e + 1].lineIndex == line && !isWhitespace(chars[e + 1].codepoint)) e++
+        return s..e
+    }
+
+    private fun isWhitespace(cp: Int): Boolean = Character.isWhitespace(cp)
 }
