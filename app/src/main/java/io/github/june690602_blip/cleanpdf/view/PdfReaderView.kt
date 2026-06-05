@@ -188,7 +188,10 @@ class PdfReaderView @JvmOverloads constructor(
     }
 
     override fun onInterceptTouchEvent(e: MotionEvent): Boolean {
-        if (e.actionMasked == MotionEvent.ACTION_DOWN && selPage >= 0) {
+        if (e.actionMasked == MotionEvent.ACTION_DOWN
+            && selPage >= 0
+            && !scaleDetector.isInProgress
+        ) {
             val h = handleUnder(e.x, e.y)
             if (h != null) { draggingHandle = h; return true }
         }
