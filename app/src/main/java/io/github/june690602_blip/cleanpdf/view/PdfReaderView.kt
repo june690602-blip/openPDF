@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import io.github.june690602_blip.cleanpdf.cache.BitmapCache
 import io.github.june690602_blip.cleanpdf.pdf.PageRenderer
 import io.github.june690602_blip.cleanpdf.pdf.PageSize
+import io.github.june690602_blip.cleanpdf.pdf.SearchHit
 
 class PdfReaderView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null,
@@ -19,6 +20,7 @@ class PdfReaderView @JvmOverloads constructor(
     private var cache: BitmapCache? = null
     private var sizes: List<PageSize> = emptyList()
     private var adapterImpl: PdfPageAdapter? = null
+    private var lastLayout: PageLayout? = null
     private val gapPx = (resources.displayMetrics.density * 8).toInt()
     var zoom: Float = 1f; private set
 
@@ -81,10 +83,35 @@ class PdfReaderView @JvmOverloads constructor(
         onPageChanged?.invoke(i, sizes.size)
     }
 
+    /** Show [hits] as highlights, with [active] drawn stronger. Empty list clears them. */
+    fun setSearchHighlights(hits: List<SearchHit>, active: SearchHit?) {
+        adapterImpl?.setHighlights(hits, active)
+    }
+
+    fun clearSearchHighlights() {
+        adapterImpl?.setHighlights(emptyList(), null)
+    }
+
+    /**
+     * Scroll so [hit] sits near the top quarter of the viewport. Converts the hit's PDF-point top
+     * to cell pixels using the current layout's scale (so it tracks the active zoom).
+     */
+    fun scrollToHit(hit: SearchHit) {
+        if (sizes.isEmpty()) return
+        val page = hit.page.coerceIn(0, sizes.size - 1)
+        val cw = lastLayout?.contentWidth ?: return
+        val s = HighlightGeometry.scale(sizes[page].width, cw)
+        val hitTopPx = hit.y0 * s
+        val offset = (height * 0.25f - hitTopPx).toInt()
+        (layoutManager as LinearLayoutManager).scrollToPositionWithOffset(page, offset)
+        onPageChanged?.invoke(page, sizes.size)
+    }
+
     private fun relayout() {
         val r = renderer ?: return
         if (width == 0) { post { relayout() }; return }
         val layout = PageLayout.compute(sizes, fitWidthPx = width, gapPx = gapPx, zoom = zoom)
+        lastLayout = layout
         adapterImpl?.submitLayout(layout)
     }
 
