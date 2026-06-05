@@ -3,4 +3,8 @@
         android:id="@+id/action_open"
         android:title="@string/open_pdf"
         android:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_recent"
+        android:title="@string/recent_files"
+        android:showAsAction="never" />
 </menu>

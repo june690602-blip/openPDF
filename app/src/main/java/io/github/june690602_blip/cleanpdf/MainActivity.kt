@@ -21,6 +21,7 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var renderer: PageRenderer? = null
     private lateinit var reader: PdfReaderView
     private lateinit var errorView: android.widget.TextView
+    private val recents by lazy { io.github.june690602_blip.cleanpdf.store.RecentFilesStore(this) }
 
     private val openDoc = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -56,6 +57,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.action_open -> { openDoc.launch(arrayOf("application/pdf")); true }
+        R.id.action_recent -> { showRecent(); true }
         else -> super.onOptionsItemSelected(item)
     }
 
@@ -74,7 +76,7 @@ class MainActivity : AppCompatActivity() {
         errorView.visibility = android.view.View.VISIBLE
     }
 
-    private fun showDocument(doc: PdfDocument) {
+    private fun showDocument(doc: PdfDocument, file: File) {
         // Build the new renderer fully before touching the old one, so a failed open leaves the
         // current document intact. Shut the old renderer down only after the adapter has been
         // swapped on the UI thread — shutting it earlier could make the still-installed old
@@ -83,6 +85,7 @@ class MainActivity : AppCompatActivity() {
         val sizes = r.sizesBlockingOnRenderThread()
         val old = renderer
         renderer = r
+        recents.add(file.absolutePath, file.name)
         runOnUiThread {
             errorView.visibility = android.view.View.GONE
             reader.visibility = android.view.View.VISIBLE
@@ -94,13 +97,13 @@ class MainActivity : AppCompatActivity() {
     /** Open [file] off the bg thread, surfacing errors/password via the UI. Call from [bg]. */
     private fun openFile(file: File) {
         when (val result = PdfDocument.openResult(file.absolutePath)) {
-            is PdfOpenResult.Success -> showDocument(result.document)
-            is PdfOpenResult.NeedsPassword -> runOnUiThread { promptPassword(result.document) }
+            is PdfOpenResult.Success -> showDocument(result.document, file)
+            is PdfOpenResult.NeedsPassword -> runOnUiThread { promptPassword(result.document, file) }
             is PdfOpenResult.Error -> runOnUiThread { showError(getString(R.string.error_open)) }
         }
     }
 
-    private fun promptPassword(doc: PdfDocument) {
+    private fun promptPassword(doc: PdfDocument, file: File) {
         val input = android.widget.EditText(this).apply {
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             hint = getString(R.string.password_hint)
@@ -110,11 +113,30 @@ class MainActivity : AppCompatActivity() {
             .setView(input)
             .setPositiveButton(R.string.ok) { _, _ ->
                 bg.execute {
-                    if (doc.authenticate(input.text.toString())) showDocument(doc)
-                    else runOnUiThread { promptPassword(doc) /* 재시도 */ }
+                    if (doc.authenticate(input.text.toString())) showDocument(doc, file)
+                    else runOnUiThread { promptPassword(doc, file) /* 재시도 */ }
                 }
             }
             .setNegativeButton(R.string.cancel) { _, _ -> bg.execute { doc.close() } }
+            .show()
+    }
+
+    private fun showRecent() {
+        val items = recents.list()
+        if (items.isEmpty()) {
+            android.widget.Toast.makeText(this, R.string.no_recent, android.widget.Toast.LENGTH_SHORT).show(); return
+        }
+        val names = items.map { it.name }.toTypedArray()
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.recent_files)
+            .setItems(names) { _, which ->
+                val f = File(items[which].path)
+                if (f.exists()) bg.execute { openFile(f) }
+                else {
+                    recents.remove(items[which].path)
+                    android.widget.Toast.makeText(this, R.string.recent_missing, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
             .show()
     }
 
