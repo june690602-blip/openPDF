@@ -22,6 +22,12 @@ class PdfReaderView @JvmOverloads constructor(
     private val gapPx = (resources.displayMetrics.density * 8).toInt()
     var zoom: Float = 1f; private set
 
+    /** Total page count of the attached document (0 if none). */
+    val pageCount: Int get() = sizes.size
+
+    /** Invoked with (0-based current page, total) when the first visible page changes. */
+    var onPageChanged: ((current: Int, total: Int) -> Unit)? = null
+
     private val minZoom = 1f
     private val maxZoom = 8f
     private var liveScale = 1f  // transient visual scale during an active pinch
@@ -45,7 +51,16 @@ class PdfReaderView @JvmOverloads constructor(
             }
         })
 
-    init { layoutManager = LinearLayoutManager(context) }
+    init {
+        layoutManager = LinearLayoutManager(context)
+        addOnScrollListener(object : OnScrollListener() {
+            override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                val lm = layoutManager as? LinearLayoutManager ?: return
+                val pos = lm.findFirstVisibleItemPosition()
+                if (pos != NO_POSITION) onPageChanged?.invoke(pos, sizes.size)
+            }
+        })
+    }
 
     /** Attach an opened document. [sizes] precomputed off-thread by the caller. */
     fun setDocument(renderer: PageRenderer, sizes: List<PageSize>) {
@@ -55,6 +70,15 @@ class PdfReaderView @JvmOverloads constructor(
         val a = PdfPageAdapter(renderer, cache!!, pageSizeProvider = { i -> sizes[i] })
         adapterImpl = a; adapter = a
         relayout()
+        post { onPageChanged?.invoke(0, this.sizes.size) }
+    }
+
+    /** Jump so page [index] (0-based) is at the top of the viewport. Clamped to a valid page. */
+    fun scrollToPage(index: Int) {
+        if (sizes.isEmpty()) return
+        val i = index.coerceIn(0, sizes.size - 1)
+        (layoutManager as LinearLayoutManager).scrollToPositionWithOffset(i, 0)
+        onPageChanged?.invoke(i, sizes.size)
     }
 
     private fun relayout() {
