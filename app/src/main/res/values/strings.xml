@@ -24,4 +24,9 @@
     <string name="search_next">다음</string>
     <string name="search_close">검색 닫기</string>
     <string name="search_position">%1$d / %2$d</string>
+    <string name="selection_copy">복사</string>
+    <string name="selection_close">닫기</string>
+    <string name="selection_copied">복사됨</string>
+    <string name="selection_chars">%d자 선택</string>
+    <string name="selection_none">선택할 텍스트가 없습니다</string>
 </resources>
