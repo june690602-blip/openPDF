@@ -45,4 +45,25 @@ class TextSelectionTest {
     @Test fun wordRangeOnEmptyPageIsNull() {
         assertNull(TextSelection.wordRangeAt(PageText(0, emptyList()), 0f, 0f))
     }
+
+    /** "AB" on line 0, "C" on line 1. */
+    private fun twoLines(): PageText = PageText(
+        pageIndex = 0,
+        chars = listOf(
+            PageChar('A'.code, 0f, 0f, 10f, 12f, 0),
+            PageChar('B'.code, 10f, 0f, 20f, 12f, 0),
+            PageChar('C'.code, 0f, 20f, 10f, 32f, 1),
+        ),
+    )
+
+    @Test fun selectionRectsMergePerLine() {
+        val rects = TextSelection.selectionRects(twoLines(), 0..2)
+        assertEquals(2, rects.size)
+        assertArrayEquals(floatArrayOf(0f, 0f, 20f, 12f), rects[0], 0.001f)
+        assertArrayEquals(floatArrayOf(0f, 20f, 10f, 32f), rects[1], 0.001f)
+    }
+
+    @Test fun selectionRectsOnEmptyPageIsEmpty() {
+        assertEquals(0, TextSelection.selectionRects(PageText(0, emptyList()), 0..0).size)
+    }
 }

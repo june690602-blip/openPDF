@@ -43,4 +43,28 @@ object TextSelection {
     }
 
     private fun isWhitespace(cp: Int): Boolean = Character.isWhitespace(cp)
+
+    /** One merged rect per text line covered by [range], as FloatArray[x0,y0,x1,y1] in PDF points. */
+    fun selectionRects(page: PageText, range: IntRange): List<FloatArray> {
+        if (page.isEmpty) return emptyList()
+        val lo = range.first.coerceIn(0, page.chars.size - 1)
+        val hi = range.last.coerceIn(0, page.chars.size - 1)
+        val out = ArrayList<FloatArray>()
+        var i = lo
+        while (i <= hi) {
+            val line = page.chars[i].lineIndex
+            var x0 = Float.MAX_VALUE; var y0 = Float.MAX_VALUE
+            var x1 = -Float.MAX_VALUE; var y1 = -Float.MAX_VALUE
+            while (i <= hi && page.chars[i].lineIndex == line) {
+                val c = page.chars[i]
+                if (c.x0 < x0) x0 = c.x0
+                if (c.y0 < y0) y0 = c.y0
+                if (c.x1 > x1) x1 = c.x1
+                if (c.y1 > y1) y1 = c.y1
+                i++
+            }
+            out.add(floatArrayOf(x0, y0, x1, y1))
+        }
+        return out
+    }
 }
