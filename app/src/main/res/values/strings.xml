@@ -16,4 +16,8 @@
     <string name="goto_title">페이지 이동</string>
     <string name="goto_hint">1–%d 페이지</string>
     <string name="thumbnails">썸네일</string>
+    <string name="search">검색</string>
+    <string name="search_hint">검색어</string>
+    <string name="search_none">검색 결과 없음</string>
+    <string name="search_count">%d건</string>
 </resources>

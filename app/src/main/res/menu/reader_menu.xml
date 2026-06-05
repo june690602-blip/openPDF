@@ -19,4 +19,8 @@
         android:id="@+id/action_thumbnails"
         android:title="@string/thumbnails"
         android:showAsAction="never" />
+    <item
+        android:id="@+id/action_search"
+        android:title="@string/search"
+        android:showAsAction="never" />
 </menu>

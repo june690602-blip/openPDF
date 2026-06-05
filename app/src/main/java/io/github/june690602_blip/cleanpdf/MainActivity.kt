@@ -16,6 +16,8 @@ import io.github.june690602_blip.cleanpdf.pdf.PageRenderer
 import io.github.june690602_blip.cleanpdf.pdf.PageSize
 import io.github.june690602_blip.cleanpdf.pdf.PdfDocument
 import io.github.june690602_blip.cleanpdf.pdf.PdfOpenResult
+import io.github.june690602_blip.cleanpdf.pdf.SearchHit
+import io.github.june690602_blip.cleanpdf.pdf.SearchHits
 import io.github.june690602_blip.cleanpdf.view.PageJump
 import io.github.june690602_blip.cleanpdf.view.PdfReaderView
 import io.github.june690602_blip.cleanpdf.view.ThumbnailAdapter
@@ -71,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         R.id.action_outline -> { showOutline(); true }
         R.id.action_goto -> { promptGoto(); true }
         R.id.action_thumbnails -> { showThumbnails(); true }
+        R.id.action_search -> { showSearch(); true }
         else -> super.onOptionsItemSelected(item)
     }
 
@@ -216,6 +219,35 @@ class MainActivity : AppCompatActivity() {
             dialog.dismiss()
         }
         dialog.show()
+    }
+
+    private fun showSearch() {
+        val r = renderer ?: return
+        val input = android.widget.EditText(this).apply { hint = getString(R.string.search_hint) }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.search)
+            .setView(input)
+            .setPositiveButton(R.string.search) { _, _ ->
+                val q = input.text.toString()
+                bg.execute {
+                    val hits = r.searchBlocking(q)
+                    runOnUiThread { showSearchResults(hits) }
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun showSearchResults(hits: List<SearchHit>) {
+        if (hits.isEmpty()) {
+            android.widget.Toast.makeText(this, R.string.search_none, android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        val labels = SearchHits.labels(hits).toTypedArray()
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.search_count, hits.size))
+            .setItems(labels) { _, which -> reader.scrollToPage(hits[which].page) }
+            .show()
     }
 
     override fun onDestroy() { super.onDestroy(); renderer?.shutdown(); bg.shutdown() }
