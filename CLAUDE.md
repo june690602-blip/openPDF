@@ -14,13 +14,13 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 
 ## Key docs (read these first to get oriented)
 - Design spec — all decisions: `docs/superpowers/specs/2026-06-05-cleanpdf-viewer-design.md`
-- 계획서(완료): Phase 0–1 / Phase 2(intake) / Phase 3(navigation) / Phase 3.5(thumbnails) — `docs/superpowers/plans/`
-- 핸드오프: Phase 1 / Phase 2 / **Phase 3·3.5** — `docs/superpowers/handoff/`
-- **다음 작업 — Phase 4(검색) 계획**: `docs/superpowers/plans/2026-06-05-cleanpdf-phase4-search.md`
+- 계획서(완료): Phase 0–1 / Phase 2(intake) / Phase 3(navigation) / Phase 3.5(thumbnails) / Phase 4(search) — `docs/superpowers/plans/`
+- 핸드오프: Phase 1 / Phase 2 / Phase 3·3.5 / **Phase 4** — `docs/superpowers/handoff/`
+- **다음 작업 — Phase 4.5(검색 하이라이트 + 순차 이동) 계획**: `docs/superpowers/plans/2026-06-05-cleanpdf-phase4_5-highlight.md`
 
-## Status (2026-06-05) — Phase 3.5 완료, `main` 병합됨
+## Status (2026-06-05) — Phase 4(검색) 완료, `main` 병합됨
 
-**현재 `main` HEAD: Phase 3.5 = `bd9e535`.** 연속 스크롤 + 줌 + 임의 PDF 열기(SAF) + 카톡 VIEW/SEND 인입 + 에러/암호 화면 + 최근 파일 + **탐색(목차·페이지점프·번호점프·썸네일)**까지 동작.
+**현재 `main` HEAD: Phase 4 = `0cf0c35`.** 연속 스크롤 + 줌 + 임의 PDF 열기(SAF) + 카톡 VIEW/SEND 인입 + 에러/암호 화면 + 최근 파일 + 탐색(목차·페이지점프·번호점프·썸네일) + **전체 텍스트 검색(찾기→히트수→페이지 점프)**까지 동작.
 
 ### 작동 중 ✅
 - **연속 세로 스크롤** — RecyclerView, 온디맨드 백그라운드 렌더, 가시 페이지만 렌더(±버퍼).
@@ -31,10 +31,11 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 - **최근 파일 (Phase 2)** — `RecentFilesStore`(SharedPreferences, 불변, newest-first·dedup·cap10).
 - **탐색 — 목차/페이지점프 (Phase 3)** — 목차(`PdfDocument.loadOutline` via fitz `resolveLink`/`pageNumberFromLocation`, **렌더 스레드**에서 `loadOutlineBlocking`)·페이지 점프(`PdfReaderView.scrollToPage`)·페이지번호 입력 점프(순수 `PageJump`)·툴바 "N/전체" 인디케이터(`onPageChanged`).
 - **썸네일 (Phase 3.5)** — 오버플로 "썸네일" → **AlertDialog 3열 그리드**(`ThumbnailAdapter` — 렌더러 공유 + 자체 작은 캐시 + recycle 금지) → 셀 탭 점프.
-- **테스트** — 단위 33(LruByteSizedCache5+PageLayout5+PdfValidation5+RenderScale3+Intents4+RecentFilesLogic4+PageJump5+OutlineModel2), 계측 4(Render+ScrollZoom+IntentIntake+Navigation). ⚠️ `RecentFilesLogic` 은 org.json 때문에 Robolectric(`@Config sdk=34`) — 이후 순수 직렬화로 바꾸면 함정 제거 가능.
+- **검색 (Phase 4)** — 오버플로 "검색" → 검색어 입력 → fitz `Page.search(needle, SEARCH_IGNORE_CASE): Quad[][]`(렌더 스레드 `PageRenderer.searchBlocking`)로 전체 페이지 검색, 히트별 quad 합집합 bbox를 `SearchHit(page,x0..y1)` 로 → 결과 다이얼로그(제목 "N건" + "M쪽" 목록, 순수 `SearchHits.labels`) → 항목 탭 시 `scrollToPage`. `maxHits=500` 상한. **하이라이트/순차 다음·이전은 Phase 4.5로 분리**(렌더 어댑터 침습 최소화).
+- **테스트** — 단위 35(LruByteSizedCache5+PageLayout5+PdfValidation5+RenderScale3+Intents4+RecentFilesLogic4+PageJump5+OutlineModel2+SearchHits2), 계측 5(Render+ScrollZoom+IntentIntake+Navigation+SearchSmoke). ⚠️ `RecentFilesLogic` 은 org.json 때문에 Robolectric(`@Config sdk=34`) — 이후 순수 직렬화로 바꾸면 함정 제거 가능.
 
-### 진행 중 ⏳ — 다음 = Phase 4 (검색)
-- 스펙 §5.3: 찾기 바 → 전체검색(fitz `Page.search(needle): Quad[][]`) → 다음/이전 → 히트수. 계획: `docs/superpowers/plans/2026-06-05-cleanpdf-phase4-search.md`. **하이라이트 오버레이는 Phase 4.5로 분리**(렌더 파이프라인 침습 최소화).
+### 진행 중 ⏳ — 다음 = Phase 4.5 (검색 하이라이트 + 순차 이동)
+- 스펙 §5.3 나머지: 검색바(prev/next/count) + 히트 하이라이트 오버레이 + `scrollToHit`. 핵심: 순수 `SearchCursor`(히트목록+현재위치+다음/이전 wrapping, TDD) + `SearchHit` rect(PDF 포인트)→페이지 픽셀 좌표 변환. **렌더 어댑터 침습 주의**(불변조건 단일 렌더 스레드·recycle 금지). Phase 4는 히트 목록+점프까지만 했고, 다음/이전·하이라이트를 여기서 마저. 계획: `plans/2026-06-05-cleanpdf-phase4_5-highlight.md`.
 - 이후 Phase 5 선택·복사 / Phase 6 다크·야간반전 / Phase 7 출시(**AGPL 고지** + GitHub 공개 레포 — 현재 원격 없음).
 - **미검증(실기/픽스처)**: 실제 카톡 SEND·VIEW(S25), 암호 PDF 다이얼로그(픽스처 없음), 목차 점프(목차 있는 실제 PDF 필요).
 
@@ -59,6 +60,7 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 
 ## Gotchas
 - **에뮬레이터 저장공간 부족**: `adb -s emulator-5554 shell pm trim-caches 9999999999` 후 재시도. (native가 아니라 순수 AAR이라 `install -r` 로 충분 — opendwg의 .so 갱신 함정 없음.)
+- **adb `input text` + 한글 IME**: 에뮬 기본 키보드(Gboard)가 한글 조합 모드면 `input text "Page"` 가 자모로 변환됨(두벌식 g→ㅎ, e→ㄷ → "ㅎ드"). UI 자동화로 영문 입력 시 `adb shell ime disable <ime>` 로 IME 끄고 입력 후 `ime enable`+`ime set <ime>` 으로 복구(슬래시 포함 id라 `MSYS_NO_PATHCONV=1`). id 확인: `adb shell settings get secure default_input_method`. (Phase 4 검색 검증에서 발견.)
 - **Windows/git-bash 경로**: `adb shell <device-path>` 가 MSYS 경로변환에 망가지면 `MSYS_NO_PATHCONV=1` 사용. `$null`/`$env:` 는 PowerShell, bash 명령은 Bash 툴로.
 - **LF→CRLF git 경고**: 무해. 무시.
 - 루트 `*.png`(증거 스크린샷)와 `app/build/` 는 `.gitignore` 처리됨.
