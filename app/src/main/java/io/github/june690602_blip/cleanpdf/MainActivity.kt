@@ -12,6 +12,7 @@ import io.github.june690602_blip.cleanpdf.io.PdfSource
 import io.github.june690602_blip.cleanpdf.pdf.PageRenderer
 import io.github.june690602_blip.cleanpdf.pdf.PdfDocument
 import io.github.june690602_blip.cleanpdf.pdf.PdfOpenResult
+import io.github.june690602_blip.cleanpdf.view.PageJump
 import io.github.june690602_blip.cleanpdf.view.PdfReaderView
 import java.io.File
 import java.util.concurrent.Executors
@@ -33,6 +34,9 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(findViewById<MaterialToolbar>(R.id.toolbar))
         reader = findViewById(R.id.reader)
         errorView = findViewById(R.id.error_view)
+        reader.onPageChanged = { cur, total ->
+            supportActionBar?.subtitle = if (total > 0) "${cur + 1} / $total" else null
+        }
         val incoming = io.github.june690602_blip.cleanpdf.io.Intents.incomingUri(
             intent.action,
             intent.data,
@@ -58,6 +62,8 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.action_open -> { openDoc.launch(arrayOf("application/pdf")); true }
         R.id.action_recent -> { showRecent(); true }
+        R.id.action_outline -> { showOutline(); true }
+        R.id.action_goto -> { promptGoto(); true }
         else -> super.onOptionsItemSelected(item)
     }
 
@@ -137,6 +143,45 @@ class MainActivity : AppCompatActivity() {
                     android.widget.Toast.makeText(this, R.string.recent_missing, android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
+            .show()
+    }
+
+    private fun showOutline() {
+        val r = renderer ?: return
+        bg.execute {
+            val items = r.loadOutlineBlocking()
+            runOnUiThread {
+                if (items.isEmpty()) {
+                    android.widget.Toast.makeText(this, R.string.no_outline, android.widget.Toast.LENGTH_SHORT).show()
+                    return@runOnUiThread
+                }
+                val labels = items.map { "    ".repeat(it.level) + it.title }.toTypedArray()
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle(R.string.outline)
+                    .setItems(labels) { _, which ->
+                        val page = items[which].page
+                        if (page >= 0) reader.scrollToPage(page)
+                    }
+                    .show()
+            }
+        }
+    }
+
+    private fun promptGoto() {
+        val total = reader.pageCount
+        if (total <= 0) return
+        val input = android.widget.EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            hint = getString(R.string.goto_hint, total)
+        }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.goto_title)
+            .setView(input)
+            .setPositiveButton(R.string.ok) { _, _ ->
+                val idx = PageJump.parse(input.text.toString(), total)
+                if (idx != null) reader.scrollToPage(idx)
+            }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 

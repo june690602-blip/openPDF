@@ -7,4 +7,12 @@
         android:id="@+id/action_recent"
         android:title="@string/recent_files"
         android:showAsAction="never" />
+    <item
+        android:id="@+id/action_outline"
+        android:title="@string/outline"
+        android:showAsAction="never" />
+    <item
+        android:id="@+id/action_goto"
+        android:title="@string/goto_title"
+        android:showAsAction="never" />
 </menu>
