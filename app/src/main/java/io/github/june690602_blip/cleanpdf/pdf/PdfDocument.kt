@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import com.artifex.mupdf.fitz.Document
 import com.artifex.mupdf.fitz.Matrix
 import com.artifex.mupdf.fitz.Outline
+import com.artifex.mupdf.fitz.StructuredText
 import com.artifex.mupdf.fitz.android.AndroidDrawDevice
 
 /**
@@ -47,6 +48,34 @@ class PdfDocument private constructor(private val doc: Document) {
     private fun convert(nodes: Array<Outline>): List<RawOutline> = nodes.map { n ->
         val page = runCatching { doc.pageNumberFromLocation(doc.resolveLink(n)) }.getOrDefault(-1)
         RawOutline(n.title ?: "", page, n.down?.let { convert(it) } ?: emptyList())
+    }
+
+    /**
+     * Case-insensitive full-text search across all pages. Returns up to [maxHits] hits, each with a
+     * 0-based page index and a bounding box (union of the hit's quads) in PDF points.
+     * MUST be called on the render thread (it touches the fitz Document).
+     */
+    fun search(needle: String, maxHits: Int = 500): List<SearchHit> {
+        if (needle.isBlank()) return emptyList()
+        val out = ArrayList<SearchHit>()
+        for (p in 0 until pageCount) {
+            val page = doc.loadPage(p)
+            val hits = page.search(needle, StructuredText.SEARCH_IGNORE_CASE)
+            page.destroy()
+            if (hits != null) for (quads in hits) {
+                if (quads.isEmpty()) continue
+                var x0 = Float.MAX_VALUE; var y0 = Float.MAX_VALUE
+                var x1 = -Float.MAX_VALUE; var y1 = -Float.MAX_VALUE
+                for (q in quads) {
+                    val r = q.toRect()
+                    if (r.x0 < x0) x0 = r.x0; if (r.y0 < y0) y0 = r.y0
+                    if (r.x1 > x1) x1 = r.x1; if (r.y1 > y1) y1 = r.y1
+                }
+                out.add(SearchHit(p, x0, y0, x1, y1))
+                if (out.size >= maxHits) return out
+            }
+        }
+        return out
     }
 
     fun close() = doc.destroy()

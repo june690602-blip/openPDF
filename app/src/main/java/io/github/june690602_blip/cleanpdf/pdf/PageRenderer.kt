@@ -26,6 +26,10 @@ class PageRenderer(private val doc: PdfDocument) {
     fun loadOutlineBlocking(): List<PdfOutlineItem> =
         exec.submit<List<PdfOutlineItem>> { doc.loadOutline() }.get()
 
+    /** Full-text search on the render thread (fitz access is single-threaded). Blocking. */
+    fun searchBlocking(needle: String): List<SearchHit> =
+        exec.submit<List<SearchHit>> { doc.search(needle) }.get()
+
     /**
      * Render [page] at [scale]; deliver the bitmap via [onReady].
      * NOTE: [onReady] is invoked on the render thread — callers MUST post to the main thread
