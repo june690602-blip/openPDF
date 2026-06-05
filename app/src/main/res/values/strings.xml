@@ -2,4 +2,10 @@
     <string name="app_name">CleanPDF Viewer</string>
     <string name="open_pdf">PDF 열기</string>
     <string name="error_open">PDF를 열 수 없습니다</string>
+    <string name="error_not_pdf">PDF 파일이 아닙니다</string>
+    <string name="password_title">암호 입력</string>
+    <string name="password_hint">PDF 암호</string>
+    <string name="password_wrong">암호가 올바르지 않습니다</string>
+    <string name="ok">확인</string>
+    <string name="cancel">취소</string>
 </resources>

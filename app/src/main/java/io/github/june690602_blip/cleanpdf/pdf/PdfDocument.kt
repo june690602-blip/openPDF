@@ -38,5 +38,16 @@ class PdfDocument private constructor(private val doc: Document) {
     companion object {
         /** Open a PDF from a local filesystem path. Throws on unreadable/corrupt files. */
         fun open(path: String): PdfDocument = PdfDocument(Document.openDocument(path))
+
+        /** Open a PDF, returning a [PdfOpenResult] instead of throwing. NeedsPassword if encrypted. */
+        fun openResult(path: String): PdfOpenResult =
+            runCatching { PdfDocument(Document.openDocument(path)) }
+                .fold(
+                    onSuccess = { doc ->
+                        if (doc.needsPassword()) PdfOpenResult.NeedsPassword(doc)
+                        else PdfOpenResult.Success(doc)
+                    },
+                    onFailure = { PdfOpenResult.Error(it.message ?: "open failed") },
+                )
     }
 }
