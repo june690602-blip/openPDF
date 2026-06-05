@@ -46,6 +46,21 @@ class TextSelectionTest {
         assertNull(TextSelection.wordRangeAt(PageText(0, emptyList()), 0f, 0f))
     }
 
+    @Test fun wordRangeStopsAtLineBoundaryEvenWithoutWhitespace() {
+        // "AB" on line 0, "CD" on line 1, all bboxes contiguous with no whitespace between.
+        val p = PageText(
+            pageIndex = 0,
+            chars = listOf(
+                PageChar('A'.code, 0f, 0f, 10f, 12f, 0),
+                PageChar('B'.code, 10f, 0f, 20f, 12f, 0),
+                PageChar('C'.code, 20f, 0f, 30f, 12f, 1),
+                PageChar('D'.code, 30f, 0f, 40f, 12f, 1),
+            ),
+        )
+        // Over 'C' (center x = 25): the word must not cross into line 0.
+        assertEquals(2..3, TextSelection.wordRangeAt(p, 25f, 6f))
+    }
+
     /** "AB" on line 0, "C" on line 1. */
     private fun twoLines(): PageText = PageText(
         pageIndex = 0,

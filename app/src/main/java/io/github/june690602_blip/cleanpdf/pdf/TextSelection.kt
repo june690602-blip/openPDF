@@ -44,7 +44,12 @@ object TextSelection {
 
     private fun isWhitespace(cp: Int): Boolean = Character.isWhitespace(cp)
 
-    /** One merged rect per text line covered by [range], as FloatArray[x0,y0,x1,y1] in PDF points. */
+    /**
+     * One merged rect per text line covered by [range], as FloatArray[x0,y0,x1,y1] in PDF points.
+     *
+     * Requires [PageText.chars] (and therefore [range]) to be ordered by [PageChar.lineIndex]
+     * (non-decreasing). This holds for fitz-sourced [PageText]; arbitrary orderings are undefined.
+     */
     fun selectionRects(page: PageText, range: IntRange): List<FloatArray> {
         if (page.isEmpty) return emptyList()
         val lo = range.first.coerceIn(0, page.chars.size - 1)
