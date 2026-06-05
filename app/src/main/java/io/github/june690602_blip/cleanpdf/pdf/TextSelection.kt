@@ -82,4 +82,17 @@ object TextSelection {
         }
         return sb.toString()
     }
+
+    /**
+     * Start (bottom-left of the first selected char) and end (bottom-right of the last selected char)
+     * handle anchor points, each as FloatArray[x,y] in PDF points; null if the page has no text.
+     */
+    fun handlePoints(page: PageText, range: IntRange): Pair<FloatArray, FloatArray>? {
+        if (page.isEmpty) return null
+        val lo = range.first.coerceIn(0, page.chars.size - 1)
+        val hi = range.last.coerceIn(0, page.chars.size - 1)
+        val a = page.chars[lo]
+        val b = page.chars[hi]
+        return floatArrayOf(a.x0, a.y1) to floatArrayOf(b.x1, b.y1)
+    }
 }

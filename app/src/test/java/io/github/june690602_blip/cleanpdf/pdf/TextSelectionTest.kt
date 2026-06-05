@@ -75,4 +75,14 @@ class TextSelectionTest {
     @Test fun selectedTextOnEmptyPageIsBlank() {
         assertEquals("", TextSelection.selectedText(PageText(0, emptyList()), 0..0))
     }
+
+    @Test fun handlePointsAreFirstBottomLeftAndLastBottomRight() {
+        val (s, e) = TextSelection.handlePoints(twoLines(), 0..2)!!
+        assertArrayEquals(floatArrayOf(0f, 12f), s, 0.001f)   // 'A' bottom-left
+        assertArrayEquals(floatArrayOf(10f, 32f), e, 0.001f)  // 'C' bottom-right
+    }
+
+    @Test fun handlePointsOnEmptyPageIsNull() {
+        assertNull(TextSelection.handlePoints(PageText(0, emptyList()), 0..0))
+    }
 }
