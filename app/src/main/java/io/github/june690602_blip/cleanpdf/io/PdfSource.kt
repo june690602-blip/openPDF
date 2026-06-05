@@ -2,6 +2,7 @@ package io.github.june690602_blip.cleanpdf.io
 
 import android.content.Context
 import android.net.Uri
+import io.github.june690602_blip.cleanpdf.pdf.isLikelyPdf
 import java.io.File
 
 /** Copies a content:// (or file://) PDF into app cache and returns the local file. */
@@ -14,6 +15,17 @@ object PdfSource {
             out.outputStream().use { input.copyTo(it) }
         }
         return out
+    }
+
+    /** True if [uri] looks like a PDF by display name (.pdf) or %PDF- magic header. */
+    fun looksLikePdf(context: Context, uri: Uri): Boolean {
+        val name = queryName(context, uri)
+        val head = runCatching {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                ByteArray(8).let { buf -> val n = input.read(buf); if (n <= 0) ByteArray(0) else buf.copyOf(n) }
+            } ?: ByteArray(0)
+        }.getOrDefault(ByteArray(0))
+        return isLikelyPdf(name, head)
     }
 
     private fun queryName(context: Context, uri: Uri): String? =

@@ -1,5 +1,6 @@
 package io.github.june690602_blip.cleanpdf
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
@@ -31,12 +32,21 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(findViewById<MaterialToolbar>(R.id.toolbar))
         reader = findViewById(R.id.reader)
         errorView = findViewById(R.id.error_view)
-        // Dev convenience: open bundled sample on first launch.
-        bg.execute {
-            val f = File(cacheDir, "sample.pdf").apply {
-                assets.open("sample.pdf").use { i -> outputStream().use { i.copyTo(it) } }
+        val incoming = io.github.june690602_blip.cleanpdf.io.Intents.incomingUri(
+            intent.action,
+            intent.data,
+            androidx.core.content.IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java),
+        )
+        if (incoming != null) {
+            loadFromUri(incoming)
+        } else {
+            // Dev 편의: 인입이 없으면 번들 샘플 자동 오픈.
+            bg.execute {
+                val f = File(cacheDir, "sample.pdf").apply {
+                    assets.open("sample.pdf").use { i -> outputStream().use { i.copyTo(it) } }
+                }
+                openFile(f)
             }
-            openFile(f)
         }
     }
 
@@ -50,7 +60,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadFromUri(uri: Uri) = bg.execute {
+        if (!PdfSource.looksLikePdf(this, uri)) {
+            runOnUiThread { showError(getString(R.string.error_not_pdf)) }
+            return@execute
+        }
         runCatching { openFile(PdfSource.copyToCache(this, uri)) }
+            .onFailure { runOnUiThread { showError(getString(R.string.error_open)) } }
     }
 
     private fun showError(message: String) {
