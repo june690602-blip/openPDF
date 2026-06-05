@@ -22,6 +22,10 @@ class PageRenderer(private val doc: PdfDocument) {
     fun sizesBlockingOnRenderThread(): List<PageSize> =
         exec.submit<List<PageSize>> { (0 until doc.pageCount).map { doc.pageSize(it) } }.get()
 
+    /** Load the document outline on the render thread (fitz access is single-threaded). Blocking. */
+    fun loadOutlineBlocking(): List<PdfOutlineItem> =
+        exec.submit<List<PdfOutlineItem>> { doc.loadOutline() }.get()
+
     /**
      * Render [page] at [scale]; deliver the bitmap via [onReady].
      * NOTE: [onReady] is invoked on the render thread — callers MUST post to the main thread

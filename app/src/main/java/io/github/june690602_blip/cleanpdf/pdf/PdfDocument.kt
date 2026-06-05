@@ -3,11 +3,12 @@ package io.github.june690602_blip.cleanpdf.pdf
 import android.graphics.Bitmap
 import com.artifex.mupdf.fitz.Document
 import com.artifex.mupdf.fitz.Matrix
+import com.artifex.mupdf.fitz.Outline
 import com.artifex.mupdf.fitz.android.AndroidDrawDevice
 
 /**
  * Thin wrapper over MuPDF [Document]. NOT thread-safe: all calls must run on a
- * single dedicated thread (see PageRenderer in a later task). Always [close] when done.
+ * single dedicated thread (see PageRenderer). Always [close] when done.
  */
 class PdfDocument private constructor(private val doc: Document) {
 
@@ -31,6 +32,21 @@ class PdfDocument private constructor(private val doc: Document) {
         val bmp = AndroidDrawDevice.drawPage(page, ctm)
         page.destroy()
         return bmp
+    }
+
+    /**
+     * Flattened outline (bookmarks). Empty if the PDF has none. Each item's page is a 0-based
+     * index (or -1 if the bookmark has no resolvable destination).
+     * MUST be called on the render thread (it touches the fitz Document).
+     */
+    fun loadOutline(): List<PdfOutlineItem> {
+        val raw = doc.loadOutline() ?: return emptyList()
+        return OutlineModel.flatten(convert(raw))
+    }
+
+    private fun convert(nodes: Array<Outline>): List<RawOutline> = nodes.map { n ->
+        val page = runCatching { doc.pageNumberFromLocation(doc.resolveLink(n)) }.getOrDefault(-1)
+        RawOutline(n.title ?: "", page, n.down?.let { convert(it) } ?: emptyList())
     }
 
     fun close() = doc.destroy()
