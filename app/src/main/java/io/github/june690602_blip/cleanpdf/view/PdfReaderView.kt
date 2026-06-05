@@ -152,15 +152,19 @@ class PdfReaderView @JvmOverloads constructor(
         val cell = vh.itemView
         val cw = lastLayout?.contentWidth ?: return null
         val s = SelectionGeometry.scale(sizes[page].width, cw)
+        var best: Handle? = null
+        var bestD = grabRadiusPx
         selStartPt?.let {
             val p = SelectionGeometry.pointToPixels(it[0], it[1], s)
-            if (dist(x, y, cell.left + p[0], cell.top + p[1]) <= grabRadiusPx) return Handle.START
+            val d = dist(x, y, cell.left + p[0], cell.top + p[1])
+            if (d <= bestD) { bestD = d; best = Handle.START }
         }
         selEndPt?.let {
             val p = SelectionGeometry.pointToPixels(it[0], it[1], s)
-            if (dist(x, y, cell.left + p[0], cell.top + p[1]) <= grabRadiusPx) return Handle.END
+            val d = dist(x, y, cell.left + p[0], cell.top + p[1])
+            if (d <= bestD) { bestD = d; best = Handle.END }
         }
-        return null
+        return best
     }
 
     private fun dist(ax: Float, ay: Float, bx: Float, by: Float): Float {
