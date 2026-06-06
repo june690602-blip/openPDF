@@ -162,7 +162,7 @@ IO `DocProbe`가 맡는다.
   word-wrap:break-word">`로 감싸 줄바꿈·탭·자동 줄나눔 보존. 문단 사이는 빈 줄.
 - **찾기**: 툴바 메뉴 "찾기" → 입력 → `WebView.findAllAsync(q)` + `setFindListener`로 매치 수 표시,
   찾기바(◀ 현재/전체 ▶ + 닫기)는 기존 `search_bar`(prev/next/close/position) 패턴 미러, `findNext(true/false)`.
-- **글자줌**: 핀치 줌(`builtInZoomControls`)이 v1 기본 포함. 툴바 +/− 버튼(`settings.textZoom` 단계)은 선택적 폴리시.
+- **글자줌**: 핀치 줌(`builtInZoomControls`)만 — v1은 핀치로 충분(사용자 확정). +/− 버튼은 비범위.
 - **선택·복사**: WebView 롱프레스 기본 컨텍스트 액션(선택→복사) 사용. 별도 구현 없음.
 - **에러**: `Empty`/`Failure`면 WebView 숨기고 error_view 표시(§9). 툴바 제목=파일명, 뒤로가기=종료.
 
@@ -213,7 +213,7 @@ IO `DocProbe`가 맡는다.
 - 구 `.doc`(OLE Word)·`.xls`·`.ppt`·`.rtf`·`.odt`·**HWP v3** 지원(→ 미지원 에러)
 - DOCX 머리말/꼬리말/각주/미주, 변경내용 추적
 - 문서 썸네일(최근파일은 일반 아이콘), 교차문단 정밀 선택(WebView 기본 선택 사용)
-- "다른 앱으로 열기" 폴백, 야간 반전(문서 뷰어는 추후 설정과 통합 가능)
+- "다른 앱으로 열기" 폴백, 글자줌 +/− 버튼(핀치로 충분), 야간 반전(문서 뷰어는 추후 설정과 통합 가능)
 
 ## 14. 실행 계획 (Phase 골격)
 
