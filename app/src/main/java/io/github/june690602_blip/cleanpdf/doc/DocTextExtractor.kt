@@ -16,6 +16,7 @@ object Extractors {
     fun forFormat(format: DocFormat): DocTextExtractor? = when (format) {
         DocFormat.DOCX -> DocxExtractor
         DocFormat.HWPX -> HwpxExtractor
+        DocFormat.HWP -> HwpExtractor
         else -> null
     }
 }
