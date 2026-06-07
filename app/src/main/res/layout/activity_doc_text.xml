@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/doc_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.Material3.Dark.ActionBar" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <WebView
+            android:id="@+id/doc_web"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/doc_error"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:padding="24dp"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/find_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="horizontal"
+            android:background="?attr/colorPrimary"
+            android:gravity="center_vertical"
+            android:padding="4dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/find_position"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:paddingStart="12dp"
+                android:textColor="#FFFFFFFF"
+                android:textSize="14sp" />
+
+            <Button android:id="@+id/find_prev_btn" style="?attr/borderlessButtonStyle"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/search_prev" android:textColor="#FFFFFFFF" />
+            <Button android:id="@+id/find_next_btn" style="?attr/borderlessButtonStyle"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/search_next" android:textColor="#FFFFFFFF" />
+            <Button android:id="@+id/find_close_btn" style="?attr/borderlessButtonStyle"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/search_close" android:textColor="#FFFFFFFF" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>

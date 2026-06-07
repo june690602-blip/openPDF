@@ -33,5 +33,8 @@
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".DocTextActivity"
+            android:exported="false" />
     </application>
 </manifest>

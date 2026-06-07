@@ -29,4 +29,9 @@
     <string name="selection_copied">복사됨</string>
     <string name="selection_chars">%d자 선택</string>
     <string name="selection_none">선택할 텍스트가 없습니다</string>
+    <string name="open_file">파일 열기</string>
+    <string name="error_unsupported">지원하지 않는 형식입니다</string>
+    <string name="error_open_doc">이 파일은 텍스트로 열 수 없습니다</string>
+    <string name="doc_empty">이 문서에는 읽을 텍스트가 없습니다</string>
+    <string name="find">찾기</string>
 </resources>
