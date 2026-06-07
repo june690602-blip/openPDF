@@ -36,4 +36,15 @@ class RecentFilesLogicTest {
         val l = listOf(RecentFile("/x", "x.pdf", 7L), RecentFile("/y", "y.pdf", 8L))
         assertEquals(l, RecentFilesLogic.deserialize(RecentFilesLogic.serialize(l)))
     }
+
+    @Test fun serializesAndReadsFormat() {
+        val list = listOf(RecentFile("/p/a.docx", "a.docx", 1L, "DOCX"))
+        val round = RecentFilesLogic.deserialize(RecentFilesLogic.serialize(list))
+        org.junit.Assert.assertEquals("DOCX", round[0].format)
+    }
+
+    @Test fun legacyEntryWithoutFormatDefaultsToPdf() {
+        val legacy = "[{\"p\":\"/p/x.pdf\",\"n\":\"x.pdf\",\"t\":5}]"
+        org.junit.Assert.assertEquals("PDF", RecentFilesLogic.deserialize(legacy)[0].format)
+    }
 }

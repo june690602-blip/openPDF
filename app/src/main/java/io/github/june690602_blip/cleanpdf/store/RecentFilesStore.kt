@@ -5,7 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** One recent entry. Immutable. [path] = the app-cache file we copied the PDF into. */
-data class RecentFile(val path: String, val name: String, val ts: Long)
+data class RecentFile(val path: String, val name: String, val ts: Long, val format: String = "PDF")
 
 /** Pure list logic (newest-first, dedup by path, capped) + JSON (de)serialization. */
 object RecentFilesLogic {
@@ -14,14 +14,15 @@ object RecentFilesLogic {
 
     fun serialize(list: List<RecentFile>): String {
         val arr = JSONArray()
-        list.forEach { arr.put(JSONObject().put("p", it.path).put("n", it.name).put("t", it.ts)) }
+        list.forEach { arr.put(JSONObject().put("p", it.path).put("n", it.name).put("t", it.ts).put("f", it.format)) }
         return arr.toString()
     }
 
     fun deserialize(json: String): List<RecentFile> = runCatching {
         val arr = JSONArray(json)
         (0 until arr.length()).map { i ->
-            val o = arr.getJSONObject(i); RecentFile(o.getString("p"), o.getString("n"), o.getLong("t"))
+            val o = arr.getJSONObject(i)
+            RecentFile(o.getString("p"), o.getString("n"), o.getLong("t"), o.optString("f", "PDF"))
         }
     }.getOrDefault(emptyList())
 }
@@ -32,8 +33,8 @@ class RecentFilesStore(context: Context, private val max: Int = 10) {
 
     fun list(): List<RecentFile> = RecentFilesLogic.deserialize(prefs.getString("items", "[]")!!)
 
-    fun add(path: String, name: String) {
-        val next = RecentFilesLogic.add(list(), RecentFile(path, name, System.currentTimeMillis()), max)
+    fun add(path: String, name: String, format: String = "PDF") {
+        val next = RecentFilesLogic.add(list(), RecentFile(path, name, System.currentTimeMillis(), format), max)
         prefs.edit().putString("items", RecentFilesLogic.serialize(next)).apply()
     }
 
