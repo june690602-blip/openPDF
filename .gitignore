@@ -16,3 +16,5 @@ keystore.properties
 emulator-boot.log
 # local QA/evidence screenshots (root only)
 /*.png
+# private HWP test fixtures (personal docs — never commit)
+app/src/androidTest/assets/*.hwp
