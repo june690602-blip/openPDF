@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.mupdf.fitz)
+    implementation(libs.hwplib)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.junit)
