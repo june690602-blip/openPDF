@@ -2,6 +2,7 @@ package io.github.june690602_blip.cleanpdf
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import io.github.june690602_blip.cleanpdf.doc.DocBlock
 import io.github.june690602_blip.cleanpdf.doc.ExtractResult
 import io.github.june690602_blip.cleanpdf.doc.HwpxExtractor
 import org.junit.Assert.assertEquals
@@ -29,7 +30,10 @@ class HwpxExtractorSmokeTest {
         }
         val result = HwpxExtractor.extract(hwpx)
         assertTrue(result is ExtractResult.Success)
-        val paras = (result as ExtractResult.Success).text.paragraphs
-        assertEquals(listOf("첫장", "둘째장"), paras)
+        val blocks = (result as ExtractResult.Success).text.blocks
+        assertEquals(
+            listOf("첫장", "둘째장"),
+            blocks.filterIsInstance<DocBlock.Para>().map { it.text }
+        )
     }
 }

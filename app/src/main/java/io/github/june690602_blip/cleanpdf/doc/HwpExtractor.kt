@@ -10,6 +10,6 @@ object HwpExtractor : DocTextExtractor {
     override fun extract(file: File): ExtractResult = runCatching {
         val hwp = file.inputStream().use { HWPReader.fromInputStream(it) }
         val raw = TextExtractor.extract(hwp, TextExtractMethod.InsertControlTextBetweenParagraphText)
-        toResult(raw.split('\n'))
+        toResultStrings(raw.split('\n'))
     }.getOrElse { ExtractResult.Failure(it.message ?: "hwp parse error") }
 }

@@ -13,7 +13,7 @@ object DocxExtractor : DocTextExtractor {
             zip.getInputStream(entry).use { input ->
                 val parser = Xml.newPullParser()
                 parser.setInput(input, null)
-                toResult(XmlFlowText.parse(parser))
+                toResultStrings(XmlFlowText.parse(parser))
             }
         }
     }.getOrElse { ExtractResult.Failure(it.message ?: "docx parse error") }

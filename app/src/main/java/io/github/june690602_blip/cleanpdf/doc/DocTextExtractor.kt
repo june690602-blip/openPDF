@@ -6,10 +6,19 @@ interface DocTextExtractor {
     fun extract(file: File): ExtractResult
 }
 
-/** 문단들이 모두 공백이면 Empty, 아니면 Success. */
-fun toResult(paragraphs: List<String>): ExtractResult =
-    if (paragraphs.none { it.isNotBlank() }) ExtractResult.Empty
-    else ExtractResult.Success(DocText(paragraphs))
+/** 의미있는 블록이 하나도 없으면 Empty, 아니면 Success. */
+fun toResult(blocks: List<DocBlock>): ExtractResult =
+    if (blocks.none { it.hasContent() }) ExtractResult.Empty
+    else ExtractResult.Success(DocText(blocks))
+
+/** 마이그레이션용: 문자열 줄을 Para 블록으로 감쌈(포맷 추출기가 블록으로 옮겨가면 제거). */
+fun toResultStrings(lines: List<String>): ExtractResult = toResult(lines.map { DocBlock.Para(it) })
+
+private fun DocBlock.hasContent(): Boolean = when (this) {
+    is DocBlock.Para -> text.isNotBlank()
+    is DocBlock.Table -> rows.any { r -> r.any { it.isNotBlank() } }
+    is DocBlock.Image -> true
+}
 
 object Extractors {
     /** 포맷→추출기. 포맷별 구현은 이후 Task 에서 연결(지금은 전부 null). */

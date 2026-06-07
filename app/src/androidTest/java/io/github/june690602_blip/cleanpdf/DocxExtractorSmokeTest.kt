@@ -2,6 +2,7 @@ package io.github.june690602_blip.cleanpdf
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import io.github.june690602_blip.cleanpdf.doc.DocBlock
 import io.github.june690602_blip.cleanpdf.doc.DocxExtractor
 import io.github.june690602_blip.cleanpdf.doc.ExtractResult
 import org.junit.Assert.assertTrue
@@ -31,8 +32,8 @@ class DocxExtractorSmokeTest {
 
         val result = DocxExtractor.extract(docx)
         assertTrue("expected Success, got $result", result is ExtractResult.Success)
-        val paras = (result as ExtractResult.Success).text.paragraphs
-        assertTrue(paras.any { it.contains("계약서 본문") })
-        assertTrue("table row flattened", paras.any { it == "항목\t금액" })
+        val blocks = (result as ExtractResult.Success).text.blocks
+        assertTrue(blocks.any { it is DocBlock.Para && it.text.contains("계약서 본문") })
+        assertTrue("table row flattened to para", blocks.any { it is DocBlock.Para && it.text == "항목\t금액" })
     }
 }

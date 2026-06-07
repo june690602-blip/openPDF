@@ -1,7 +1,7 @@
 package io.github.june690602_blip.cleanpdf.doc
 
-/** 추출된 텍스트(불변). 표는 이미 평탄화되어 한 행이 한 문자열. */
-data class DocText(val paragraphs: List<String>)
+/** 추출 결과(불변). 문단/표/이미지 블록 순서 목록. */
+data class DocText(val blocks: List<DocBlock>)
 
 sealed interface ExtractResult {
     data class Success(val text: DocText) : ExtractResult

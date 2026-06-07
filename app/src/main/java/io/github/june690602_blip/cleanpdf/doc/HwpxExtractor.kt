@@ -22,7 +22,7 @@ object HwpxExtractor : DocTextExtractor {
                 }
             }
         }
-        toResult(all)
+        toResultStrings(all)
     }.getOrElse { ExtractResult.Failure(it.message ?: "hwpx parse error") }
 }
 
