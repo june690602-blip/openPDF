@@ -10,17 +10,18 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 - AGP 9.1.1, Gradle 9.3.1 (built-in Kotlin).
 - PDF engine: **MuPDF (Artifex) `fitz` 1.27.1** — prebuilt AAR from `maven.ghostscript.com` (`com.artifex.mupdf:fitz:1.27.1`). **No NDK/JNI build** (unlike opendwg's LibreDWG) — fitz ships `.so` + Java API; we add Kotlin UI on top.
 - Rendering pipeline: **PDF → cache file copy → fitz Document → single-thread PageRenderer → Bitmap LRU cache → RecyclerView (one page per row) → custom PdfReaderView (continuous scroll + pinch zoom)**.
+- 문서(한글·워드) 읽기: **DOCX/HWP/HWPX → 텍스트만** 추출 → 별도 `DocTextActivity`(오프라인 WebView). DOCX/HWPX=안드 내장 XmlPullParser(0 dep), HWP=**hwplib 1.1.10**(Apache-2.0, AGPL 호환). PDF 코어와 격리.
 - Package / applicationId: `io.github.june690602_blip.cleanpdf`
 
 ## Key docs (read these first to get oriented)
 - Design spec — all decisions: `docs/superpowers/specs/2026-06-05-cleanpdf-viewer-design.md`
 - 계획서(완료): Phase 0–1 / Phase 2(intake) / Phase 3(navigation) / Phase 3.5(thumbnails) / Phase 4(search) / Phase 4.5(highlight) — `docs/superpowers/plans/`
 - 핸드오프: Phase 1 / Phase 2 / Phase 3·3.5 / Phase 4 / **Phase 4.5** — `docs/superpowers/handoff/`
-- **다음 작업 — Phase 5(텍스트 선택·복사)**: 계획 예정
+- **DocText(한글·워드 텍스트 읽기, 2026-06-06)** — 스펙 `specs/2026-06-06-cleanpdf-doctext-design.md` · 계획 `plans/2026-06-06-cleanpdf-doctext.md` · 핸드오프 `handoff/2026-06-06-cleanpdf-doctext-handoff.md`
 
-## Status (2026-06-06) — Phase 5(텍스트 선택·복사) 완료, 브랜치 `feat/phase5-text-selection` (main 병합 대기)
+## Status (2026-06-06) — DocText(한글·워드 텍스트 읽기) 완료, 브랜치 `feat/doctext-reader` (main 병합 대기)
 
-**main HEAD: `4564499`(Phase 4.5 문서). Phase 5 코드는 브랜치 `feat/phase5-text-selection`(미병합).** 연속 스크롤 + 줌 + 임의 PDF 열기(SAF) + 카톡 VIEW/SEND 인입 + 에러/암호 화면 + 최근 파일 + 탐색(목차·페이지점프·번호점프·썸네일) + 전체 텍스트 검색(하이라이트+순차이동) + **텍스트 길게눌러 단어 선택·핸들 드래그·클립보드 복사**까지 동작.
+**main HEAD: `6c05712`(Phase 5 병합 완료). DocText 코드는 브랜치 `feat/doctext-reader`(미병합, feat 13 + docs 3 커밋).** PDF: 연속 스크롤 + 줌 + 임의 열기(SAF) + 카톡 VIEW/SEND + 에러/암호 + 최근파일 + 탐색 + 검색 + 텍스트 선택·복사. **추가: DOCX/HWP/HWPX 를 텍스트로 읽기(별도 오프라인 WebView 화면).**
 
 ### 작동 중 ✅
 - **연속 세로 스크롤** — RecyclerView, 온디맨드 백그라운드 렌더, 가시 페이지만 렌더(±버퍼).
@@ -34,7 +35,8 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 - **검색 (Phase 4)** — 오버플로 "검색" → 검색어 입력 → fitz `Page.search(needle, SEARCH_IGNORE_CASE): Quad[][]`(렌더 스레드 `PageRenderer.searchBlocking`)로 전체 페이지 검색, 히트별 quad 합집합 bbox를 `SearchHit(page,x0..y1)` 로. `maxHits=500` 상한.
 - **검색 하이라이트 + 순차 이동 (Phase 4.5)** — 검색 시 결과 다이얼로그 대신 **하단 검색바**(◀ 현재/전체 ▶ + 닫기) + **형광 하이라이트 오버레이** + 첫 히트 자동 스크롤. `HighlightOverlayView`를 페이지 셀 `FrameLayout`에 얹음(**비트맵 캐시 미오염**, recycle 0). 순수 `SearchCursor`(wrapping next/prev) + 순수 `HighlightGeometry`(PDF점→셀픽셀, `FloatArray`). `PdfReaderView.scrollToHit`(lastLayout scale)·`setSearchHighlights`. 활성 hit=진한 주황, 나머지=연한 노랑. 좌표계 y-down(뒤집기 불필요, 실기 확인).
 - **텍스트 선택·복사 (Phase 5)** — 길게 누르면 단어 스냅 선택 → 시작/끝 핸들 드래그로 범위 조절 → 하단 바 "N자 선택 / 복사 / 닫기"로 클립보드 복사. **순수 모델 엔진**: long-press 시 fitz `Page.toStructuredText().getBlocks()`로 페이지 1회 파싱 → 불변 `PageText`(문자 codepoint+bbox, android/fitz 타입 0) → 선택범위/하이라이트rect/복사문자열/핸들좌표는 전부 순수 Kotlin(`pdf/TextSelection`, JVM 단위테스트, 드래그 중 렌더스레드 왕복 0, 하이라이트=복사 WYSIWYG). 추출은 렌더 스레드(`PageRenderer.extractTextBlocking`→`PdfDocument.extractText`). 선택은 PDF점 저장→`onBind`에서 셀픽셀 재투영(줌 자동 추종, 실기 2.5배 정렬 확인). 오버레이 뷰(`view/SelectionOverlayView`, 비트맵/캐시 미오염, 캐시-히트 early-return **前** 적용). 핸들 grab 시 스크롤 가로채기(`onInterceptTouchEvent`), **핀치 중 미가로채기**(`!scaleDetector.isInProgress`). 좌표변환 `view/SelectionGeometry`(역변환 px→pt 포함). MainActivity는 검색과 동일한 controller-folded 패턴(begin/apply/drag/copy/close). **단일 페이지 범위**(교차페이지 미지원). 빈 영역 long-press=최근접 단어 스냅; 텍스트-없는 페이지만 "선택할 텍스트 없음" 토스트.
-- **테스트** — 단위 58(기존43 + TextSelection12 + SelectionGeometry3), 계측 8(기존6 + TextExtraction + TextSelection). 기존 단위 43=LruByteSizedCache5+PageLayout5+PdfValidation5+RenderScale3+Intents4+RecentFilesLogic4+PageJump5+OutlineModel2+SearchHits2+SearchCursor5+HighlightGeometry3. ⚠️ `RecentFilesLogic` 은 org.json 때문에 Robolectric(`@Config sdk=34`) — 이후 순수 직렬화로 바꾸면 함정 제거 가능. ⚠️ `connectedDebugAndroidTest`는 실행 후 앱 APK를 **언인스톨**함 — 실기 수동검증은 그 전에(또는 `installDebug` 재설치 후).
+- **문서(한글·워드) 텍스트 읽기 (DocText)** — 카톡/SAF/최근파일에서 `.docx`/`.hwp`/`.hwpx` 열면 `MainActivity`가 `detectFormat`(확장자+매직; 확장자 없는 octet-stream 은 `DocProbe`로 ZIP/OLE 컨테이너 정밀판정)으로 분기 → PDF는 기존 경로, 문서는 **별도 `DocTextActivity`**(오프라인 WebView: JS off·baseURL null·핀치 글자줌·선택/복사 + `findAllAsync` 찾기바). 추출은 bg 스레드 → 불변 `DocText`: DOCX=`word/document.xml`, HWPX=`Contents/section*.xml`(번호순)를 **공용 `XmlFlowText`**(local-name 매칭, 표=셀\t·행\n 평탄화), HWP v5=**hwplib**. `DocHtml`이 escape+`<pre>`로 HTML화(스크립트 주입 차단). 실패=친절한 에러(빈문서/못읽음/미지원 구분). 최근파일은 `RecentFile.format` 저장→재오픈 라우팅(구항목=PDF 하위호환). **PDF 8대 불변조건 무접촉**(fitz 미사용·별도 액티비티·별도 bg executor).
+- **테스트** — 단위 85(기존58 + 문서 27: DocFormat·ToResult·XmlFlowText·DocHtml·DocProbe·SectionIndex + RecentFilesLogic 보강), 계측 13(기존8 + 문서 5: DocxExtractor·DocTextActivity·HwpxExtractor·DocFind + HwpExtractor[픽스처 없으면 skip]). 전체 0 실패. 기존 단위 43=LruByteSizedCache5+PageLayout5+PdfValidation5+RenderScale3+Intents4+RecentFilesLogic4+PageJump5+OutlineModel2+SearchHits2+SearchCursor5+HighlightGeometry3. ⚠️ `RecentFilesLogic`·`XmlFlowTextTest` 은 org.json / `android.util.Xml` 때문에 Robolectric(`@Config sdk=34`). ⚠️ `connectedDebugAndroidTest`는 실행 후 앱 APK를 **언인스톨**함 — 실기 수동검증은 그 전에(또는 `installDebug` 재설치 후).
 
 ### 진행 중 ⏳ — 다음 = Phase 6 (다크모드 + 야간 읽기)
 - 스펙: 앱 크롬 다크(`values-night`) + **페이지 색 반전 토글**(어두운 곳 가독성) + 설정 화면.
