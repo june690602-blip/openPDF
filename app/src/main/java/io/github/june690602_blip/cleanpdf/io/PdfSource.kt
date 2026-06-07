@@ -2,7 +2,6 @@ package io.github.june690602_blip.cleanpdf.io
 
 import android.content.Context
 import android.net.Uri
-import io.github.june690602_blip.cleanpdf.pdf.isLikelyPdf
 import java.io.File
 
 /** content:// (또는 file://) 문서를 앱 캐시로 복사하고 이름/헤더를 들여다보는 헬퍼(포맷 중립). */
@@ -32,8 +31,4 @@ object PdfSource {
             if (read <= 0) ByteArray(0) else buf.copyOf(read)
         } ?: ByteArray(0)
     }.getOrDefault(ByteArray(0))
-
-    /** True if [uri] looks like a PDF by display name (.pdf) or %PDF- magic. (A9 에서 제거 예정) */
-    fun looksLikePdf(context: Context, uri: Uri): Boolean =
-        isLikelyPdf(displayName(context, uri), peekHead(context, uri, 8))
 }

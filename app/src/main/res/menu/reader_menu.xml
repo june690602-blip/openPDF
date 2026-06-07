@@ -1,7 +1,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/action_open"
-        android:title="@string/open_pdf"
+        android:title="@string/open_file"
         android:showAsAction="ifRoom" />
     <item
         android:id="@+id/action_recent"

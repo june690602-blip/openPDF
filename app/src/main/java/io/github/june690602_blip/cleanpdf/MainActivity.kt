@@ -13,6 +13,9 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
 import io.github.june690602_blip.cleanpdf.cache.BitmapCache
+import io.github.june690602_blip.cleanpdf.doc.DocFormat
+import io.github.june690602_blip.cleanpdf.doc.DocProbe
+import io.github.june690602_blip.cleanpdf.doc.detectFormat
 import io.github.june690602_blip.cleanpdf.io.PdfSource
 import io.github.june690602_blip.cleanpdf.pdf.PageRenderer
 import io.github.june690602_blip.cleanpdf.pdf.PageSize
@@ -90,7 +93,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        R.id.action_open -> { openDoc.launch(arrayOf("application/pdf")); true }
+        R.id.action_open -> { openDoc.launch(arrayOf("*/*")); true }
         R.id.action_recent -> { showRecent(); true }
         R.id.action_outline -> { showOutline(); true }
         R.id.action_goto -> { promptGoto(); true }
@@ -100,12 +103,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadFromUri(uri: Uri) = bg.execute {
-        if (!PdfSource.looksLikePdf(this, uri)) {
-            runOnUiThread { showError(getString(R.string.error_not_pdf)) }
-            return@execute
+        val name = PdfSource.displayName(this, uri)
+        val head = PdfSource.peekHead(this, uri)
+        runCatching {
+            val file = PdfSource.copyToCache(this, uri)
+            var format = detectFormat(name, head)
+            if (format == DocFormat.UNKNOWN) format = DocProbe.refine(file, head)
+            route(format, file, name ?: file.name)
+        }.onFailure { runOnUiThread { showError(getString(R.string.error_open)) } }
+    }
+
+    /** 포맷별 화면으로 보냄. PDF 는 기존 경로(bg), 문서는 DocTextActivity(UI). */
+    private fun route(format: DocFormat, file: File, name: String) {
+        when (format) {
+            DocFormat.PDF -> openFile(file)
+            DocFormat.DOCX, DocFormat.HWP, DocFormat.HWPX ->
+                runOnUiThread { startActivity(DocTextActivity.intent(this, file, format, name)) }
+            DocFormat.UNKNOWN -> runOnUiThread { showError(getString(R.string.error_unsupported)) }
         }
-        runCatching { openFile(PdfSource.copyToCache(this, uri)) }
-            .onFailure { runOnUiThread { showError(getString(R.string.error_open)) } }
     }
 
     private fun showError(message: String) {
@@ -123,7 +138,7 @@ class MainActivity : AppCompatActivity() {
         val sizes = r.sizesBlockingOnRenderThread()
         val old = renderer
         renderer = r
-        recents.add(file.absolutePath, file.name)
+        recents.add(file.absolutePath, file.name, DocFormat.PDF.name)
         runOnUiThread {
             currentSizes = sizes
             errorView.visibility = android.view.View.GONE
@@ -171,10 +186,13 @@ class MainActivity : AppCompatActivity() {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(R.string.recent_files)
             .setItems(names) { _, which ->
-                val f = File(items[which].path)
-                if (f.exists()) bg.execute { openFile(f) }
-                else {
-                    recents.remove(items[which].path)
+                val item = items[which]
+                val f = File(item.path)
+                if (f.exists()) {
+                    val fmt = runCatching { DocFormat.valueOf(item.format) }.getOrDefault(DocFormat.PDF)
+                    bg.execute { route(fmt, f, item.name) }
+                } else {
+                    recents.remove(item.path)
                     android.widget.Toast.makeText(this, R.string.recent_missing, android.widget.Toast.LENGTH_SHORT).show()
                 }
             }

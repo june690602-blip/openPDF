@@ -13,7 +13,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- 외부앱 "열기" (카톡 등). octet-stream 은 폭넓게 받고 isLikelyPdf 로 파싱 전 차단. -->
+            <!-- 외부앱 "열기" (카톡 등). octet-stream 은 폭넓게 받고 DocProbe 로 파싱 전 확인. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -23,6 +23,13 @@
                 <data android:mimeType="application/pdf" />
                 <data android:mimeType="application/x-pdf" />
                 <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                <data android:mimeType="application/x-hwp" />
+                <data android:mimeType="application/haansofthwp" />
+                <data android:mimeType="application/vnd.hancom.hwp" />
+                <data android:mimeType="application/hwp+zip" />
+                <data android:mimeType="application/vnd.hancom.hwpx" />
+                <data android:mimeType="application/zip" />
             </intent-filter>
             <!-- 시스템 공유시트 "공유" (안드 11+ 패키지 가시성으로 VIEW가 안 닿는 기기 우회). -->
             <intent-filter>
@@ -31,6 +38,13 @@
                 <data android:mimeType="application/pdf" />
                 <data android:mimeType="application/x-pdf" />
                 <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                <data android:mimeType="application/x-hwp" />
+                <data android:mimeType="application/haansofthwp" />
+                <data android:mimeType="application/vnd.hancom.hwp" />
+                <data android:mimeType="application/hwp+zip" />
+                <data android:mimeType="application/vnd.hancom.hwpx" />
+                <data android:mimeType="application/zip" />
             </intent-filter>
         </activity>
         <activity
