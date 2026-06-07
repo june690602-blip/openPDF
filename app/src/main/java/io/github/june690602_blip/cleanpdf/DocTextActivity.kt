@@ -24,6 +24,7 @@ class DocTextActivity : AppCompatActivity() {
     private lateinit var findPosition: android.widget.TextView
     private val recents by lazy { RecentFilesStore(this) }
     private var format: DocFormat = DocFormat.UNKNOWN
+    private var findResultCount = 0
 
     companion object {
         private const val EXTRA_PATH = "doc_path"
@@ -46,6 +47,16 @@ class DocTextActivity : AppCompatActivity() {
         findBar = findViewById(R.id.find_bar)
         findPosition = findViewById(R.id.find_position)
         configureWebView(web)
+        findViewById<android.widget.Button>(R.id.find_prev_btn).setOnClickListener { web.findNext(false) }
+        findViewById<android.widget.Button>(R.id.find_next_btn).setOnClickListener { web.findNext(true) }
+        findViewById<android.widget.Button>(R.id.find_close_btn).setOnClickListener { closeFind() }
+        web.setFindListener { activeOrdinal, count, isDoneCounting ->
+            if (isDoneCounting) {
+                findResultCount = count
+                findPosition.text = if (count == 0) getString(R.string.search_none)
+                    else getString(R.string.search_position, activeOrdinal + 1, count)
+            }
+        }
 
         val path = intent.getStringExtra(EXTRA_PATH)
         format = runCatching { DocFormat.valueOf(intent.getStringExtra(EXTRA_FORMAT) ?: "") }
@@ -96,8 +107,29 @@ class DocTextActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         android.R.id.home -> { finish(); true }
-        // R.id.action_doc_find -> handled in Task D1
+        R.id.action_doc_find -> { promptFind(); true }
         else -> super.onOptionsItemSelected(item)
+    }
+
+    private fun promptFind() {
+        val input = android.widget.EditText(this).apply { hint = getString(R.string.search_hint) }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.find)
+            .setView(input)
+            .setPositiveButton(R.string.search) { _, _ ->
+                val q = input.text.toString()
+                if (q.isNotEmpty()) {
+                    findBar.visibility = android.view.View.VISIBLE
+                    web.findAllAsync(q)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun closeFind() {
+        web.clearMatches()
+        findBar.visibility = android.view.View.GONE
     }
 
     override fun onDestroy() { super.onDestroy(); bg.shutdown() }
