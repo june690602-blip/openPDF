@@ -15,6 +15,7 @@ object Extractors {
     /** 포맷→추출기. 포맷별 구현은 이후 Task 에서 연결(지금은 전부 null). */
     fun forFormat(format: DocFormat): DocTextExtractor? = when (format) {
         DocFormat.DOCX -> DocxExtractor
+        DocFormat.HWPX -> HwpxExtractor
         else -> null
     }
 }
