@@ -24,8 +24,6 @@ class DocTextActivity : AppCompatActivity() {
     private lateinit var findPosition: android.widget.TextView
     private val recents by lazy { RecentFilesStore(this) }
     private var format: DocFormat = DocFormat.UNKNOWN
-    private var findResultCount = 0
-
     companion object {
         private const val EXTRA_PATH = "doc_path"
         private const val EXTRA_FORMAT = "doc_format"
@@ -52,7 +50,6 @@ class DocTextActivity : AppCompatActivity() {
         findViewById<android.widget.Button>(R.id.find_close_btn).setOnClickListener { closeFind() }
         web.setFindListener { activeOrdinal, count, isDoneCounting ->
             if (isDoneCounting) {
-                findResultCount = count
                 findPosition.text = if (count == 0) getString(R.string.search_none)
                     else getString(R.string.search_position, activeOrdinal + 1, count)
             }
