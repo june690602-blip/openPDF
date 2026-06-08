@@ -9,6 +9,9 @@ import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
@@ -52,8 +55,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
-        setSupportActionBar(findViewById<MaterialToolbar>(R.id.toolbar))
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
         reader = findViewById(R.id.reader)
         errorView = findViewById(R.id.error_view)
         searchBar = findViewById(R.id.search_bar)
@@ -63,6 +68,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<android.widget.Button>(R.id.search_close_btn).setOnClickListener { closeSearch() }
         selectionBar = findViewById(R.id.selection_bar)
         selectionInfo = findViewById(R.id.selection_info)
+        applySystemBarInsets(toolbar)
         findViewById<android.widget.Button>(R.id.selection_copy_btn).setOnClickListener { copySelection() }
         findViewById<android.widget.Button>(R.id.selection_close_btn).setOnClickListener { clearSelection() }
         reader.onLongPressPdf = { page, x, y -> beginSelection(page, x, y) }
@@ -113,13 +119,31 @@ class MainActivity : AppCompatActivity() {
         }.onFailure { runOnUiThread { showError(getString(R.string.error_open)) } }
     }
 
-    /** 포맷별 화면으로 보냄. PDF 는 기존 경로(bg), 문서는 DocTextActivity(UI). */
-    private fun route(format: DocFormat, file: File, name: String) {
+    /**
+     * 포맷별 화면으로 보냄. 현재 **PDF 전용** — 문서(docx/hwp/hwpx)는 진입 비활성화(미지원 안내).
+     * 복구하려면 DOCX/HWP/HWPX 분기를 `startActivity(DocTextActivity.intent(this, file, format, name))`로 되돌리면 됨.
+     */
+    private fun route(format: DocFormat, file: File, @Suppress("UNUSED_PARAMETER") name: String) {
         when (format) {
             DocFormat.PDF -> openFile(file)
-            DocFormat.DOCX, DocFormat.HWP, DocFormat.HWPX ->
-                runOnUiThread { startActivity(DocTextActivity.intent(this, file, format, name)) }
-            DocFormat.UNKNOWN -> runOnUiThread { showError(getString(R.string.error_unsupported)) }
+            DocFormat.DOCX, DocFormat.HWP, DocFormat.HWPX, DocFormat.UNKNOWN ->
+                runOnUiThread { showError(getString(R.string.error_unsupported)) }
+        }
+    }
+
+    /** Edge-to-edge: 툴바는 상태바 아래로, 하단 바(검색·선택)는 제스처바 위로 패딩. */
+    private fun applySystemBarInsets(toolbar: MaterialToolbar) {
+        ViewCompat.setOnApplyWindowInsetsListener(toolbar) { v, insets ->
+            val top = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
+            v.setPadding(v.paddingLeft, top, v.paddingRight, v.paddingBottom)
+            insets
+        }
+        for (bar in listOf(searchBar, selectionBar)) {
+            ViewCompat.setOnApplyWindowInsetsListener(bar) { v, insets ->
+                val bottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+                v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, bottom)
+                insets
+            }
         }
     }
 
