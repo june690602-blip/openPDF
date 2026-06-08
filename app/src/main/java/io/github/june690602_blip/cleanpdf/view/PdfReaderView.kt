@@ -46,6 +46,10 @@ class PdfReaderView @JvmOverloads constructor(
 
     private val scaleDetector = ScaleGestureDetector(context,
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScaleBegin(d: ScaleGestureDetector): Boolean {
+                pivotX = d.focusX; pivotY = d.focusY  // 손가락 사이를 확대 중심으로
+                return true
+            }
             override fun onScale(d: ScaleGestureDetector): Boolean {
                 liveScale = (liveScale * d.scaleFactor).coerceIn(minZoom / zoom, maxZoom / zoom)
                 scaleX = liveScale; scaleY = liveScale  // cheap visual feedback only

@@ -92,7 +92,12 @@ class PdfPageAdapter(
         val h = l.pageHeight(position).toInt()
         holder.itemView.layoutParams = RecyclerView.LayoutParams(w, h)
         holder.pending?.cancel(true)
-        holder.image.setImageBitmap(null)
+        // 같은 페이지를 다시 바인드(줌 변경 등)하면 이전 비트맵을 유지해 재렌더 동안 빈 화면을 막는다
+        // (FIT_CENTER로 새 셀 크기에 늘어나 보이다가, 새 스케일이 준비되면 교체). 재활용으로 다른
+        // 페이지가 들어오면 비운다.
+        val samePage = holder.boundPage == position
+        holder.boundPage = position
+        if (!samePage) holder.image.setImageBitmap(null)
 
         // Search highlights for this page — applied BEFORE the cache-hit early return below, so a
         // cached page still gets its overlay. Cell pixels via HighlightGeometry.
@@ -146,6 +151,7 @@ class PdfPageAdapter(
     override fun onViewRecycled(holder: PageVH) {
         holder.pending?.cancel(true); holder.pending = null
         holder.image.setImageBitmap(null)
+        holder.boundPage = -1
     }
 
     class PageVH(
@@ -155,5 +161,7 @@ class PdfPageAdapter(
         val selectionOverlay: SelectionOverlayView,
     ) : RecyclerView.ViewHolder(itemView) {
         var pending: Future<*>? = null
+        /** Page index this holder currently shows; lets onBind keep the old bitmap on zoom re-bind. */
+        var boundPage: Int = -1
     }
 }
