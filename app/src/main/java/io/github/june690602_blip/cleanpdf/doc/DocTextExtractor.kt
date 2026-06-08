@@ -11,9 +11,6 @@ fun toResult(blocks: List<DocBlock>): ExtractResult =
     if (blocks.none { it.hasContent() }) ExtractResult.Empty
     else ExtractResult.Success(DocText(blocks))
 
-/** 마이그레이션용: 문자열 줄을 Para 블록으로 감쌈(포맷 추출기가 블록으로 옮겨가면 제거). */
-fun toResultStrings(lines: List<String>): ExtractResult = toResult(lines.map { DocBlock.Para(it) })
-
 private fun DocBlock.hasContent(): Boolean = when (this) {
     is DocBlock.Para -> text.isNotBlank()
     is DocBlock.Table -> rows.any { r -> r.any { it.isNotBlank() } }
