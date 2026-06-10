@@ -2,11 +2,11 @@ package io.github.june690602_blip.cleanpdf
 
 import android.content.Intent
 import android.net.Uri
-import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import io.github.june690602_blip.cleanpdf.view.PdfReaderView
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,8 +27,8 @@ class IntentIntakeSmokeTest {
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
             Thread.sleep(1500)
             scenario.onActivity { a ->
-                val rv = a.findViewById<RecyclerView>(R.id.reader)
-                assertTrue("intent-opened PDF should have pages", (rv.adapter?.itemCount ?: 0) >= 1)
+                val reader = a.findViewById<PdfReaderView>(R.id.reader)
+                assertTrue("intent-opened PDF should have pages", reader.pageCount >= 1)
             }
         }
     }

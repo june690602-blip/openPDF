@@ -1,11 +1,11 @@
 package io.github.june690602_blip.cleanpdf
 
-import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.swipeUp
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.june690602_blip.cleanpdf.view.PdfReaderView
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -17,8 +17,8 @@ class ScrollZoomSmokeTest {
             Thread.sleep(1500) // allow async open+first render (dev sample)
             onView(withId(R.id.reader)).perform(swipeUp(), swipeUp())
             scenario.onActivity { a ->
-                val rv = a.findViewById<RecyclerView>(R.id.reader)
-                assertTrue("adapter should have pages", (rv.adapter?.itemCount ?: 0) >= 1)
+                val reader = a.findViewById<PdfReaderView>(R.id.reader)
+                assertTrue("reader should have pages", reader.pageCount >= 1)
             }
         }
     }

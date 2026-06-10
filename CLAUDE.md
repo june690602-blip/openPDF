@@ -9,7 +9,7 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 - Kotlin, Android Views (XML layouts). minSdk 24, compile/targetSdk 36.
 - AGP 9.1.1, Gradle 9.3.1 (built-in Kotlin).
 - PDF engine: **MuPDF (Artifex) `fitz` 1.27.1** — prebuilt AAR from `maven.ghostscript.com` (`com.artifex.mupdf:fitz:1.27.1`). **No NDK/JNI build** (unlike opendwg's LibreDWG) — fitz ships `.so` + Java API; we add Kotlin UI on top.
-- Rendering pipeline: **PDF → cache file copy → fitz Document → single-thread PageRenderer → Bitmap LRU cache → RecyclerView (one page per row) → custom PdfReaderView (continuous scroll + pinch zoom)**.
+- Rendering pipeline: **PDF → cache file copy → fitz Document → single-thread PageRenderer → Bitmap LRU cache → custom Matrix `PdfReaderView`**. Single canvas; pages laid out in document space (PDF points) via `PageWorld`, drawn through one `Matrix` (doc→screen); pinch/pan/fling/double-tap = matrix ops + invalidate; visible pages re-rendered at the settled scale for sharpness. (opendwg `render/DrawingView` 패턴. 이전 RecyclerView+페이지비트맵 구조는 부드러운 줌아웃이 안 돼 폐기.)
 - 문서(한글·워드) 읽기: **DOCX/HWP/HWPX → 구조(문단·표·이미지)** 추출 → 별도 `DocTextActivity`(오프라인 WebView). DOCX/HWPX=안드 내장 XmlPullParser(0 dep, 공용 `XmlBlocks`), HWP=**hwplib 1.1.10** 객체모델(Apache-2.0, AGPL 호환). 표=`<table>`·이미지=base64 인라인(래스터만, 용량캡). PDF 코어와 격리.
 - Package / applicationId: `io.github.june690602_blip.cleanpdf`
 
@@ -20,43 +20,33 @@ Sibling app: **CleanCAD Viewer** (`C:\dev\opendwg`) — same "ad-free, free" pat
 - **DocText(한글·워드 텍스트 읽기, 2026-06-06)** — 스펙 `specs/2026-06-06-cleanpdf-doctext-design.md` · 계획 `plans/2026-06-06-cleanpdf-doctext.md` · 핸드오프 `handoff/2026-06-06-cleanpdf-doctext-handoff.md`
 - **DocText 구조+이미지(DR2, 2026-06-08)** — 스펙 `specs/2026-06-08-cleanpdf-doctext-structured-design.md` · 계획 `plans/2026-06-08-cleanpdf-doctext-structured.md` · 핸드오프 `handoff/2026-06-08-cleanpdf-doctext-structured-handoff.md`
 
-## Status (2026-06-08) — DocText 구조+이미지(DR2) 완료, 브랜치 `feat/doctext-structured` (main 병합 대기)
+## Status (2026-06-09) — PDF 줌/팬 **Matrix 재구성** 완료. 브랜치 `fix/statusbar-and-pdf-only` (main 미병합). 현재 **PDF 전용**.
 
-**main HEAD: `6c05712`(Phase 5 병합 완료). DocText는 브랜치 `feat/doctext-structured`(미병합) — 텍스트 reader + 구조(표·이미지) DR2 포함.** PDF: 연속 스크롤 + 줌 + 임의 열기(SAF) + 카톡 VIEW/SEND + 에러/암호 + 최근파일 + 탐색 + 검색 + 텍스트 선택·복사. **추가: DOCX/HWP/HWPX 를 구조(문단·표·이미지)로 읽기(별도 오프라인 WebView 화면).**
+reader를 RecyclerView+페이지비트맵에서 **opendwg `DrawingView`식 단일 Matrix 캔버스**로 재구성 — 줌인/줌아웃/팬/플링이 모두 매끄럽게(실폰 SM-G996N 확인). 워드/한글(DocText)은 조잡해서 진입만 비활성화(`doc/` 코드·hwplib 의존성·`DocTextActivity` 보존; 복구 = `MainActivity.route` 1줄 + manifest 문서 MIME 되돌리기). 공개 API가 전부 PDF점 좌표라 렌더 재구성에도 MainActivity·검색·선택 파이프라인은 무변경.
 
 ### 작동 중 ✅
-- **연속 세로 스크롤** — RecyclerView, 온디맨드 백그라운드 렌더, 가시 페이지만 렌더(±버퍼).
-- **핀치 줌 + 더블탭 줌(1↔2.5배), 최대 8배** — 핀치 중 라이브 프리뷰, 손 떼면 정밀 재렌더.
-- **임의 PDF 열기 (Phase 2)** — 오버플로 "PDF 열기" → SAF `OpenDocument` → `PdfSource.copyToCache` → 렌더. 샘플은 인입 인텐트 없을 때만 자동 오픈.
-- **파일 받기 (Phase 2)** — 카톡 등 VIEW/SEND 수신(Manifest 필터 + `Intents.incomingUri` + `looksLikePdf` 게이트 + `copyToCache`). ⚠️ 안드16(S25+) 카톡 "열기"는 가시성 한계 → SEND 권장.
-- **에러/암호 화면 (Phase 2)** — `PdfDocument.openResult`→`PdfOpenResult`(Success/NeedsPassword/Error). 손상·비-PDF → 에러 오버레이, 암호 PDF → 비번 다이얼로그.
-- **최근 파일 (Phase 2)** — `RecentFilesStore`(SharedPreferences, 불변, newest-first·dedup·cap10).
-- **탐색 — 목차/페이지점프 (Phase 3)** — 목차(`PdfDocument.loadOutline` via fitz `resolveLink`/`pageNumberFromLocation`, **렌더 스레드**에서 `loadOutlineBlocking`)·페이지 점프(`PdfReaderView.scrollToPage`)·페이지번호 입력 점프(순수 `PageJump`)·툴바 "N/전체" 인디케이터(`onPageChanged`).
-- **썸네일 (Phase 3.5)** — 오버플로 "썸네일" → **AlertDialog 3열 그리드**(`ThumbnailAdapter` — 렌더러 공유 + 자체 작은 캐시 + recycle 금지) → 셀 탭 점프.
-- **검색 (Phase 4)** — 오버플로 "검색" → 검색어 입력 → fitz `Page.search(needle, SEARCH_IGNORE_CASE): Quad[][]`(렌더 스레드 `PageRenderer.searchBlocking`)로 전체 페이지 검색, 히트별 quad 합집합 bbox를 `SearchHit(page,x0..y1)` 로. `maxHits=500` 상한.
-- **검색 하이라이트 + 순차 이동 (Phase 4.5)** — 검색 시 결과 다이얼로그 대신 **하단 검색바**(◀ 현재/전체 ▶ + 닫기) + **형광 하이라이트 오버레이** + 첫 히트 자동 스크롤. `HighlightOverlayView`를 페이지 셀 `FrameLayout`에 얹음(**비트맵 캐시 미오염**, recycle 0). 순수 `SearchCursor`(wrapping next/prev) + 순수 `HighlightGeometry`(PDF점→셀픽셀, `FloatArray`). `PdfReaderView.scrollToHit`(lastLayout scale)·`setSearchHighlights`. 활성 hit=진한 주황, 나머지=연한 노랑. 좌표계 y-down(뒤집기 불필요, 실기 확인).
-- **텍스트 선택·복사 (Phase 5)** — 길게 누르면 단어 스냅 선택 → 시작/끝 핸들 드래그로 범위 조절 → 하단 바 "N자 선택 / 복사 / 닫기"로 클립보드 복사. **순수 모델 엔진**: long-press 시 fitz `Page.toStructuredText().getBlocks()`로 페이지 1회 파싱 → 불변 `PageText`(문자 codepoint+bbox, android/fitz 타입 0) → 선택범위/하이라이트rect/복사문자열/핸들좌표는 전부 순수 Kotlin(`pdf/TextSelection`, JVM 단위테스트, 드래그 중 렌더스레드 왕복 0, 하이라이트=복사 WYSIWYG). 추출은 렌더 스레드(`PageRenderer.extractTextBlocking`→`PdfDocument.extractText`). 선택은 PDF점 저장→`onBind`에서 셀픽셀 재투영(줌 자동 추종, 실기 2.5배 정렬 확인). 오버레이 뷰(`view/SelectionOverlayView`, 비트맵/캐시 미오염, 캐시-히트 early-return **前** 적용). 핸들 grab 시 스크롤 가로채기(`onInterceptTouchEvent`), **핀치 중 미가로채기**(`!scaleDetector.isInProgress`). 좌표변환 `view/SelectionGeometry`(역변환 px→pt 포함). MainActivity는 검색과 동일한 controller-folded 패턴(begin/apply/drag/copy/close). **단일 페이지 범위**(교차페이지 미지원). 빈 영역 long-press=최근접 단어 스냅; 텍스트-없는 페이지만 "선택할 텍스트 없음" 토스트.
-- **문서(한글·워드) 구조 읽기 (DocText/DR2)** — 카톡/SAF/최근파일에서 `.docx`/`.hwp`/`.hwpx` 열면 `MainActivity`가 `detectFormat`(확장자+매직; 확장자 없는 octet-stream 은 `DocProbe`로 ZIP/OLE 컨테이너 정밀판정)으로 분기 → PDF는 기존 경로, 문서는 **별도 `DocTextActivity`**(오프라인 WebView: JS off·baseURL null·핀치 글자줌·선택/복사 + `findAllAsync` 찾기바). 추출은 bg 스레드 → 불변 **`DocText(blocks: List<DocBlock>)`**(문단/표/이미지 순서 목록): DOCX=`word/document.xml`, HWPX=`Contents/section*.xml`(번호순)를 **공용 `XmlBlocks`**(local-name 매칭, `<tbl>`→`DocBlock.Table`, 이미지 ref→resolver로 바이트 해소), HWP v5=**hwplib 객체모델**(`HwpBlocks`: ControlTable→Table, ControlPicture→등장순 이미지 페어링). 이미지는 `ImageFilter`(PNG/JPEG/GIF/BMP 매직바이트만 통과, 4MB/총16MB 캡)로 거른 뒤 base64 인라인. `DocHtml.render`가 문단=`<p>`·표=`<table>`·이미지=`<img>`로 HTML화(escape로 스크립트 주입 차단). 실패=친절한 에러(빈문서/못읽음/미지원 구분). 최근파일은 `RecentFile.format` 저장→재오픈 라우팅(구항목=PDF 하위호환). **PDF 8대 불변조건 무접촉**(fitz 미사용·별도 액티비티·별도 bg executor, DR2 변경은 전부 `doc/` 패키지에 한정).
-- **테스트** — 단위 88, 계측 13, 전체 0 실패. 문서 구조 단위: DocBlock·ImageFilter·XmlBlocks·DocHtmlRender·ToResult + 기존 DocFormat·DocProbe·SectionIndex·RecentFilesLogic. PDF 순수 단위: LruByteSizedCache·PageLayout·PdfValidation·RenderScale·Intents·PageJump·OutlineModel·SearchHits·SearchCursor·HighlightGeometry. 계측: PDF 렌더/스크롤줌/검색/하이라이트/선택/탐색/인텐트 + 문서 DocxExtractor·HwpxExtractor·DocTextActivity·DocFind·**HwpExtractor(구조검증: 표·한글, fixture 없으면 skip)**. (DR2에서 `XmlFlowText`/평탄 경로 제거 → `XmlBlocks`/`DocBlock`로 대체, `DocHtmlTest`→`DocHtmlRenderTest`.) ⚠️ `RecentFilesLogic`·`XmlBlocksTest`·`DocHtmlRenderTest` 는 org.json / `android.util.*` 때문에 Robolectric(`@Config sdk=34`). ⚠️ `connectedDebugAndroidTest`는 실행 후 앱 APK를 **언인스톨**함 — 실기 수동검증은 그 전에(또는 `installDebug` 재설치 후).
+- **Matrix 렌더/스크롤/줌/팬** — 페이지를 doc공간(PDF점, `PageWorld`)에 세로 스택, 단일 `Matrix`(doc→screen)로 그림(`PdfReaderView.onDraw` = `canvas.concat(matrix)` 후 비트맵 draw). 핀치 `postScale`(+두손가락 팬 `postTranslate`)·1손가락 팬·`OverScroller` 플링·더블탭(fit↔2.5x 애니)·clamp(스케일 [fit, 8×]·팬 콘텐츠 내). 배율이 멈추면(~120ms) 보이는 페이지를 `RenderScale.forPage(pageWpt*scale)` 배율로 재렌더(선명); 줌 중엔 캐시 비트맵을 matrix로 리샘플(부드러움, 재렌더 X).
+- **임의 PDF 열기 / 파일 받기(카톡 VIEW·SEND) / 에러·암호 / 최근파일** — Phase 2 그대로.
+- **탐색(목차·페이지점프)·썸네일·검색** — 그대로. 검색 하이라이트는 이제 `onDraw`에서 matrix로 그림(doc좌표 rect, 활성=주황/나머지=노랑). `scrollToHit`=matrix 세로이동. (썸네일 그리드는 여전히 별도 RecyclerView `ThumbnailAdapter`.)
+- **텍스트 선택·복사** — long-press 단어선택 → 시작/끝 핸들 드래그 + **long-press 후 손 안 떼고 드래그로 범위 확장** + **다른 곳 탭으로 해제**. 선택 rect/핸들은 `onDraw`에서 matrix로(핸들은 화면 고정크기). 좌표는 역행렬 screen→doc→PDF점. 순수 `pdf/TextSelection`·`PageText`는 그대로(단일 페이지 범위).
+- **UI 크롬 (2026-06-09)** — 제목 = 연 PDF **파일명**, **검은 바 + 흰 글씨**. 본문 **탭 → 툴바 숨김/표시**(immersive; 높이변경엔 줌 유지). **잡을 수 있는 스크롤바**(우측, 굵고 짧은 손잡이, 스크롤할 때만 표시·자동 fade, 드래그로 위치 점프). 하단 **"현재 / 전체" 페이지 인디케이터**(페이지 바뀌면 잠깐 떴다 사라짐).
+- **테스트** — JVM 단위 0실패(`PageWorldTest` 추가; `PageLayoutTest`/`HighlightGeometryTest`/`SelectionGeometryTest` 제거), 계측 13/13(에뮬). 죽은 파일 삭제: `PdfPageAdapter`·`HighlightOverlayView`·`SelectionOverlayView`·`PageLayout`·`HighlightGeometry`·`SelectionGeometry`. ⚠️ `connectedDebugAndroidTest`는 실행 후 앱 APK를 **언인스톨**함 — 실기 수동검증은 그 전에(또는 `installDebug` 재설치).
 
-### 진행 중 ⏳ — 다음 = Phase 6 (다크모드 + 야간 읽기)
-- 스펙: 앱 크롬 다크(`values-night`) + **페이지 색 반전 토글**(어두운 곳 가독성) + 설정 화면.
-- 이후 Phase 7 출시(**AGPL 고지** + GitHub 공개 레포 — 현재 원격 없음).
-- **Phase 5 후속(미구현, 우선순위 낮음)**: 교차페이지 선택(현재 단일페이지), 핸들 드로어블 teardrop화, `MainActivity`(현 353줄)에 3번째 제스처 추가 시 `TextSelectionController` 추출, 텍스트-없는(스캔) PDF의 `selection_none` 토스트는 단위테스트로만 검증(실기 픽스처 없음).
-- **미검증(실기/픽스처)**: 실제 카톡 SEND·VIEW(S25), 암호 PDF 다이얼로그(픽스처 없음), 목차 점프(목차 있는 실제 PDF 필요), 검색 하이라이트 줌-후 정렬(코드상 relayout 재계산 보장, 핀치 실기 미캡처).
-- **DR2 미검증/후속**: 실기 육안(표·이미지가 WebView에 실제 렌더 — 단위88+계측13으로 갈음, 스크린샷 없음), HWP 이미지 binItemID 정밀 매핑(현재 등장순 best-effort), 실파일 HWPX 이미지 attr/경로 확정, 표 안 이미지(v1 생략)·헤딩 스타일.
+### 진행 중 ⏳
+- 이 브랜치 main 병합. 이후 다크모드/페이지반전(Phase 6), Phase 7 출시(**AGPL 고지** + GitHub 공개 레포 — 현재 원격 없음).
+- 후속(우선순위 낮음): 교차페이지 선택, 고배율 타일링(현재 `RenderScale` 32MB 캡 이상은 업스케일), 가로 스크롤바(현재 없음 — 핀치 팬으로 충분), DocText 재활성화 여부 결정.
+- 미검증: 실제 카톡 SEND·VIEW(S25), 암호 PDF 다이얼로그(픽스처 없음), 목차 점프(목차 있는 실제 PDF 필요).
 
-## ⚠️ 아키텍처 불변조건 (깨면 크래시/OOM 재발 — 절대 되돌리지 말 것)
-> 상세 근거: 핸드오프 문서 §2. 대부분 코드 주석에도 있음.
+## ⚠️ 아키텍처 불변조건 (깨면 크래시/OOM/줌 결함 재발 — 절대 되돌리지 말 것)
 
 1. **단일 렌더 스레드** — 모든 `PdfDocument`/fitz 접근은 `PageRenderer` 의 단일 executor에서만 (fitz는 thread-safe 아님).
 2. **Cookie 미사용** — fitz 1.27.1엔 Cookie 오버로드 없음. `renderPage(index, scale)` 2-arg. 취소 = `Future.cancel(true)` + `isInterrupted`. Cookie 재도입 금지.
 3. **`onReady` 는 렌더 스레드 호출** — UI/캐시 만지려면 `View.post {}` 로 메인 재포스트.
-4. **캐시 비트맵 `recycle()` 안 함** — `BitmapCache` 는 onEvict 없이 참조만 떨어뜨리고 GC에 맡김. 붙어있는 비트맵 recycle → "trying to use a recycled bitmap" 크래시. recycle 재도입 금지.
+4. **캐시 비트맵 `recycle()` 안 함** — `BitmapCache` 는 참조만 떨어뜨리고 GC에 맡김. recycle → "trying to use a recycled bitmap" 크래시. recycle 재도입 금지.
 5. **렌더 스케일 캡** — `RenderScale.forPage` 가 비트맵 ≤32MB로 제한(OOM 방지). 캡 이상은 업스케일. 선명한 고배율 = 타일링(미래).
-6. **줌 시 `cache.clear()` 안 함** — `PageKey` 에 `scaleMilli` 포함(스케일별 키). clear 불필요.
-7. **줌 시 행 너비 = `contentWidth`** — `MATCH_PARENT` 면 FIT_CENTER가 줌 무력화.
-8. **`openFile` 순서** — 새 렌더러 완성 → 어댑터 교체 → **그 다음** 옛 렌더러 shutdown (먼저 하면 `RejectedExecutionException`).
+6. **줌 시 `cache.clear()` 안 함** — `PageKey` 에 `scaleMilli` 포함(스케일별 키). 배율별로 캐시·재렌더.
+7. **줌/팬/스크롤은 `PdfReaderView.matrix` 한 곳** — 단일 `Matrix`(doc→screen)가 유일한 줌/스크롤 상태. `onDraw` 는 `canvas.concat(matrix)` 로 페이지 비트맵을 그림. 라이브 줌은 캐시 비트맵을 matrix로 리샘플(재렌더 X), 멈추면 재렌더. **RecyclerView·뷰 자체 `scaleX` 스케일·오버레이 자식뷰로 되돌리지 말 것** — 줌아웃 검은공간 쪼그라듦·핀치 떨림·커밋 깜빡임이 그 구조의 태생적 결함이었음(2026-06-09 폐기).
+8. **공개 API = PDF점 좌표** — `setSelection`/`SearchHit`/`onLongPressPdf`/`scrollToPage` 등은 전부 PDF점. screen↔PDF점 변환은 뷰 내부 matrix(`PageWorld.pdfToDoc` + `matrix`)에서만. MainActivity·검색·선택 파이프라인은 렌더 방식과 무관(그래서 RecyclerView→Matrix 재구성에도 무변경).
 
 ## Build & test
 - (서브모듈 없음 — 클론 후 바로 빌드 가능.)

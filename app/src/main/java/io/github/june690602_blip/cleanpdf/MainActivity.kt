@@ -37,8 +37,10 @@ import java.util.concurrent.Executors
 class MainActivity : AppCompatActivity() {
     private val bg = Executors.newSingleThreadExecutor()
     @Volatile private var renderer: PageRenderer? = null
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var reader: PdfReaderView
     private lateinit var errorView: android.widget.TextView
+    private lateinit var pageIndicator: android.widget.TextView
     private var currentSizes: List<PageSize> = emptyList()
     private var cursor: SearchCursor? = null
     private lateinit var searchBar: android.view.View
@@ -48,6 +50,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var selectionBar: android.view.View
     private lateinit var selectionInfo: android.widget.TextView
     private val recents by lazy { io.github.june690602_blip.cleanpdf.store.RecentFilesStore(this) }
+    private val hideIndicator = Runnable {
+        pageIndicator.animate().alpha(0f).setDuration(250).withEndAction {
+            pageIndicator.visibility = android.view.View.GONE
+        }
+    }
 
     private val openDoc = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -57,10 +64,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
-        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
         reader = findViewById(R.id.reader)
         errorView = findViewById(R.id.error_view)
+        pageIndicator = findViewById(R.id.page_indicator)
         searchBar = findViewById(R.id.search_bar)
         searchPosition = findViewById(R.id.search_position)
         findViewById<android.widget.Button>(R.id.search_prev_btn).setOnClickListener { stepSearch(-1) }
@@ -73,9 +81,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<android.widget.Button>(R.id.selection_close_btn).setOnClickListener { clearSelection() }
         reader.onLongPressPdf = { page, x, y -> beginSelection(page, x, y) }
         reader.onSelectionDragPdf = { page, x, y, isStart -> dragSelection(page, x, y, isStart) }
-        reader.onPageChanged = { cur, total ->
-            supportActionBar?.subtitle = if (total > 0) "${cur + 1} / $total" else null
-        }
+        reader.onSelectionDismiss = { clearSelection() }
+        reader.onToggleChrome = { toggleChrome() }
+        reader.onPageChanged = { cur, total -> showPageIndicator(cur, total) }
         val incoming = io.github.june690602_blip.cleanpdf.io.Intents.incomingUri(
             intent.action,
             intent.data,
@@ -89,7 +97,7 @@ class MainActivity : AppCompatActivity() {
                 val f = File(cacheDir, "sample.pdf").apply {
                     assets.open("sample.pdf").use { i -> outputStream().use { i.copyTo(it) } }
                 }
-                openFile(f)
+                openFile(f, f.name)
             }
         }
     }
@@ -123,9 +131,9 @@ class MainActivity : AppCompatActivity() {
      * 포맷별 화면으로 보냄. 현재 **PDF 전용** — 문서(docx/hwp/hwpx)는 진입 비활성화(미지원 안내).
      * 복구하려면 DOCX/HWP/HWPX 분기를 `startActivity(DocTextActivity.intent(this, file, format, name))`로 되돌리면 됨.
      */
-    private fun route(format: DocFormat, file: File, @Suppress("UNUSED_PARAMETER") name: String) {
+    private fun route(format: DocFormat, file: File, name: String) {
         when (format) {
-            DocFormat.PDF -> openFile(file)
+            DocFormat.PDF -> openFile(file, name)
             DocFormat.DOCX, DocFormat.HWP, DocFormat.HWPX, DocFormat.UNKNOWN ->
                 runOnUiThread { showError(getString(R.string.error_unsupported)) }
         }
@@ -153,7 +161,7 @@ class MainActivity : AppCompatActivity() {
         errorView.visibility = android.view.View.VISIBLE
     }
 
-    private fun showDocument(doc: PdfDocument, file: File) {
+    private fun showDocument(doc: PdfDocument, file: File, title: String) {
         // Build the new renderer fully before touching the old one, so a failed open leaves the
         // current document intact. Shut the old renderer down only after the adapter has been
         // swapped on the UI thread — shutting it earlier could make the still-installed old
@@ -165,6 +173,8 @@ class MainActivity : AppCompatActivity() {
         recents.add(file.absolutePath, file.name, DocFormat.PDF.name)
         runOnUiThread {
             currentSizes = sizes
+            supportActionBar?.title = title          // 연 PDF 파일명을 제목으로
+            toolbar.visibility = android.view.View.VISIBLE   // 새 문서를 열면 툴바는 다시 보이게
             errorView.visibility = android.view.View.GONE
             reader.visibility = android.view.View.VISIBLE
             reader.setDocument(r, sizes)
@@ -175,15 +185,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** Open [file] off the bg thread, surfacing errors/password via the UI. Call from [bg]. */
-    private fun openFile(file: File) {
+    private fun openFile(file: File, title: String) {
         when (val result = PdfDocument.openResult(file.absolutePath)) {
-            is PdfOpenResult.Success -> showDocument(result.document, file)
-            is PdfOpenResult.NeedsPassword -> runOnUiThread { promptPassword(result.document, file) }
+            is PdfOpenResult.Success -> showDocument(result.document, file, title)
+            is PdfOpenResult.NeedsPassword -> runOnUiThread { promptPassword(result.document, file, title) }
             is PdfOpenResult.Error -> runOnUiThread { showError(getString(R.string.error_open)) }
         }
     }
 
-    private fun promptPassword(doc: PdfDocument, file: File) {
+    private fun promptPassword(doc: PdfDocument, file: File, title: String) {
         val input = android.widget.EditText(this).apply {
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
             hint = getString(R.string.password_hint)
@@ -193,8 +203,8 @@ class MainActivity : AppCompatActivity() {
             .setView(input)
             .setPositiveButton(R.string.ok) { _, _ ->
                 bg.execute {
-                    if (doc.authenticate(input.text.toString())) showDocument(doc, file)
-                    else runOnUiThread { promptPassword(doc, file) /* 재시도 */ }
+                    if (doc.authenticate(input.text.toString())) showDocument(doc, file, title)
+                    else runOnUiThread { promptPassword(doc, file, title) /* 재시도 */ }
                 }
             }
             .setNegativeButton(R.string.cancel) { _, _ -> bg.execute { doc.close() } }
@@ -391,6 +401,24 @@ class MainActivity : AppCompatActivity() {
         if (idx < 0) return
         selRange = TextSelection.adjustRange(range, idx, isStart)
         applySelection()
+    }
+
+    /** Tap on the page toggles the title bar (more reading space). */
+    private fun toggleChrome() {
+        toolbar.visibility =
+            if (toolbar.visibility == android.view.View.VISIBLE) android.view.View.GONE
+            else android.view.View.VISIBLE
+    }
+
+    /** Briefly show "current / total" at the bottom, then fade it out. */
+    private fun showPageIndicator(cur: Int, total: Int) {
+        if (total <= 0) return
+        pageIndicator.text = "${cur + 1} / $total"
+        pageIndicator.removeCallbacks(hideIndicator)
+        pageIndicator.animate().cancel()
+        pageIndicator.alpha = 1f
+        pageIndicator.visibility = android.view.View.VISIBLE
+        pageIndicator.postDelayed(hideIndicator, 1200)
     }
 
     override fun onDestroy() { super.onDestroy(); renderer?.shutdown(); bg.shutdown() }

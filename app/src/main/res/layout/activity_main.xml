@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:minHeight="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
+        android:background="@android:color/black"
         android:theme="@style/ThemeOverlay.Material3.Dark.ActionBar" />
 
     <FrameLayout
@@ -114,5 +114,20 @@
                 android:text="@string/selection_close"
                 android:textColor="#FFFFFFFF" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/page_indicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="28dp"
+            android:background="@drawable/bg_page_indicator"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:textColor="#FFFFFFFF"
+            android:textSize="14sp"
+            android:visibility="gone" />
     </FrameLayout>
 </LinearLayout>
