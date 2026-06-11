@@ -23,4 +23,8 @@
         android:id="@+id/action_search"
         android:title="@string/search"
         android:showAsAction="never" />
+    <item
+        android:id="@+id/action_about"
+        android:title="@string/about"
+        android:showAsAction="never" />
 </menu>

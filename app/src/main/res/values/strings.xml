@@ -34,4 +34,6 @@
     <string name="error_open_doc">이 파일은 텍스트로 열 수 없습니다</string>
     <string name="doc_empty">이 문서에는 읽을 텍스트가 없습니다</string>
     <string name="find">찾기</string>
+    <string name="about">정보 · 라이선스</string>
+    <string name="about_text">CleanPDF Viewer\n광고 없는 무료 오픈소스 PDF 뷰어.\n\n라이선스: GNU AGPL v3\n소스: https://github.com/june690602-blip/openPDF\n\n사용 오픈소스:\n• MuPDF (Artifex) — AGPL v3\n• hwplib — Apache-2.0\n\nMuPDF 결합으로 앱 전체가 AGPL v3이며, 전체 소스를 위 주소에 영구 공개합니다.</string>
 </resources>

@@ -113,7 +113,21 @@ class MainActivity : AppCompatActivity() {
         R.id.action_goto -> { promptGoto(); true }
         R.id.action_thumbnails -> { showThumbnails(); true }
         R.id.action_search -> { showSearch(); true }
+        R.id.action_about -> { showAbout(); true }
         else -> super.onOptionsItemSelected(item)
+    }
+
+    /** In-app AGPL notice + source link (license compliance) — links are tappable. */
+    private fun showAbout() {
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.app_name)
+            .setMessage(R.string.about_text)
+            .setPositiveButton(R.string.ok, null)
+            .show()
+        dialog.findViewById<android.widget.TextView>(android.R.id.message)?.let {
+            android.text.util.Linkify.addLinks(it, android.text.util.Linkify.WEB_URLS)
+            it.movementMethod = android.text.method.LinkMovementMethod.getInstance()
+        }
     }
 
     private fun loadFromUri(uri: Uri) = bg.execute {
