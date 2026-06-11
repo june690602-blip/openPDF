@@ -19,11 +19,13 @@ class RecentFilesLogicTest {
         assertEquals(listOf("/b", "/a"), list2.map { it.path })
     }
 
-    @Test fun dedupByPathMovesToFront() {
-        var l = RecentFilesLogic.add(emptyList(), rf("/a"), max = 5)
-        l = RecentFilesLogic.add(l, rf("/b"), max = 5)
-        l = RecentFilesLogic.add(l, rf("/a"), max = 5) // re-add /a
-        assertEquals(listOf("/a", "/b"), l.map { it.path })
+    @Test fun dedupByNameMovesToFrontWithLatestPath() {
+        // Re-opening the same file yields a NEW cache path but the SAME name → one entry, newest path.
+        var l = RecentFilesLogic.add(emptyList(), RecentFile("/cache/1_x.pdf", "x.pdf", 1L), max = 5)
+        l = RecentFilesLogic.add(l, RecentFile("/cache/2_y.pdf", "y.pdf", 2L), max = 5)
+        l = RecentFilesLogic.add(l, RecentFile("/cache/3_x.pdf", "x.pdf", 3L), max = 5) // re-open x.pdf
+        assertEquals(listOf("x.pdf", "y.pdf"), l.map { it.name }) // x.pdf shown once, at front
+        assertEquals("/cache/3_x.pdf", l[0].path)                 // updated to the latest cache copy
     }
 
     @Test fun capsToMax() {
