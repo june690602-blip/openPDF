@@ -7,12 +7,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.CleanPDF">
         <activity
-            android:name=".MainActivity"
+            android:name=".HomeActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
             <!-- 외부앱 "열기" (카톡 등). octet-stream 은 폭넓게 받고 DocProbe 로 파싱 전 확인. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

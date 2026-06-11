@@ -89,11 +89,13 @@ class MainActivity : AppCompatActivity() {
             intent.data,
             androidx.core.content.IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java),
         )
-        if (incoming != null) {
-            loadFromUri(incoming)
-        } else {
-            // Dev 편의: 인입이 없으면 번들 샘플 자동 오픈.
-            bg.execute {
+        val localPath = intent.getStringExtra(EXTRA_LOCAL_PATH)
+        when {
+            incoming != null -> loadFromUri(incoming)
+            localPath != null -> bg.execute {  // HomeActivity 의 최근파일(이미 캐시된 파일)
+                openFile(File(localPath), intent.getStringExtra(EXTRA_NAME) ?: File(localPath).name)
+            }
+            else -> bg.execute {  // 홈/인텐트 없이 직접 실행(테스트·개발) 시 번들 샘플 자동 오픈
                 val f = File(cacheDir, "sample.pdf").apply {
                     assets.open("sample.pdf").use { i -> outputStream().use { i.copyTo(it) } }
                 }
@@ -436,4 +438,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() { super.onDestroy(); renderer?.shutdown(); bg.shutdown() }
+
+    companion object {
+        /** Extras for opening a recent (already-cached) file from [HomeActivity]. */
+        const val EXTRA_LOCAL_PATH = "io.github.june690602_blip.cleanpdf.LOCAL_PATH"
+        const val EXTRA_NAME = "io.github.june690602_blip.cleanpdf.NAME"
+    }
 }
