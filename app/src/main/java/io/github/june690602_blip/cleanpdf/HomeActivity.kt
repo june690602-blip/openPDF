@@ -45,11 +45,15 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menu.add(0, MENU_ABOUT, 0, R.string.about)
+        menu.add(0, MENU_PRIVACY, 1, R.string.privacy_policy)
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean =
-        if (item.itemId == MENU_ABOUT) { showAbout(); true } else super.onOptionsItemSelected(item)
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        MENU_ABOUT -> { showAbout(); true }
+        MENU_PRIVACY -> { showPrivacy(); true }
+        else -> super.onOptionsItemSelected(item)
+    }
 
     private fun refreshRecent() {
         val container = findViewById<LinearLayout>(R.id.container_recent)
@@ -94,17 +98,27 @@ class HomeActivity : AppCompatActivity() {
         })
     }
 
-    private fun showAbout() {
+    private fun showAbout() =
+        showInfoDialog(R.string.app_name, R.string.about_text, Linkify.WEB_URLS)
+
+    private fun showPrivacy() =
+        showInfoDialog(R.string.privacy_policy, R.string.privacy_text, Linkify.WEB_URLS or Linkify.EMAIL_ADDRESSES)
+
+    /** Shared info dialog: titled message with linkified URLs (and emails per [linkMask]). */
+    private fun showInfoDialog(titleRes: Int, messageRes: Int, linkMask: Int) {
         val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.app_name)
-            .setMessage(R.string.about_text)
+            .setTitle(titleRes)
+            .setMessage(messageRes)
             .setPositiveButton(R.string.ok, null)
             .show()
         dialog.findViewById<TextView>(android.R.id.message)?.let {
-            Linkify.addLinks(it, Linkify.WEB_URLS)
+            Linkify.addLinks(it, linkMask)
             it.movementMethod = LinkMovementMethod.getInstance()
         }
     }
 
-    private companion object { const val MENU_ABOUT = 1 }
+    private companion object {
+        const val MENU_ABOUT = 1
+        const val MENU_PRIVACY = 2
+    }
 }
